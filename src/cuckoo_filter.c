@@ -7,17 +7,18 @@
 #include <sys/types.h>
 #include <string.h>
 #include <stdlib.h>
+#include <assert.h>
 
 /********************  FUNCTIONS NOT EXPOSED TO EXTERNAL SOURCES  *************************/
 
 #define MAX_CUCKOO_FILTER_NAME_LENGTH 32+1
-#define __MAX_SUM_OF_BITS_OF_ALL_CUCKOO_FILTERS ((512*1024*1024*8)-1)//Max of 4 billion entries are allowed. This is the requirement for testing with 4 billion entries.
+#define __MAX_SUM_OF_BITS_OF_ALL_CUCKOO_FILTERS ((512*1024*1024*8)-1)//Max of 4 billion entries are allowed. This is the requirement for testing with 4 billion bits. So if 1-bit/item is used 4 billion(4294967296) entries are possible else if 8-bits/item is used then 53 million(536870912) entries are possible at max.
 
 
 /*
     m_bit_array_length_type. This can be a maximum of 512*1024*1024 bytes which requires atleast 29 bits for storage and hence can be stored in 32 bits(nearest power of 2). Hence the type of this variable is int (which uses 32 bits).
 */
-/* Instead of using the following logic better use the already existing helpful functions..
+/* Instead of using the following logic better use the already existing helpful types
 #if (pow(2,sizeof(unsigned int)) >= __MAX_SUM_OF_BITS_OF_ALL_CUCKOO_FILTERS)
 
     #define M_BIT_ARRAY_LENGTH_TYPE unsigned int
@@ -35,15 +36,21 @@
 #define M_BIT_ARRAY_LENGTH_TYPE u_int32_t
 
 /*
-    m_bit_array_id_type. There can be a maximum of 512*1024*1024 cuckoo filters (assuming that 1bit is allocated for each cuckoo filter. The number of allowed cuckoo filters is based on the amount of memory utilized by the cuckoo filters.The total memory that can be utilized is given by MAX_SUM_OF_BITS_OF_ALL_CUCKOO_FILTERS constant). This count requires atleast 29 bits for storage and hence can be stored in 32 bits(nearest power of 2). Hence the type of this variable is int (which uses 32 bits).
+    m_bit_array_id_type. There can be a maximum of 512*1024*1024 cuckoo filters (assuming that 8 bits are allocated for each entry/item of cuckoo filter. The number of allowed cuckoo filters is based on the total amount of memory utilized by the cuckoo filters.The total memory that can be utilized is given by MAX_SUM_OF_BITS_OF_ALL_CUCKOO_FILTERS constant). This count requires atleast 29 bits for storage and hence can be stored in 32 bits(nearest power of 2). Hence the type of this variable is int (which uses 32 bits).
 */
 #define M_BIT_ARRAY_ID_TYPE M_BIT_ARRAY_LENGTH_TYPE
 
 
 /*
-    m_bit_array_content_type. This specifies the type of the value that can be stored in the m_bit_array. This is usually the type of the 'finger print' [ usually the char pointer (char *), because it can contain both alphabets and numeric values.
+    m_bit_array_content_type. This specifies the type of the value that can be stored in the m_bit_array. This is usually the type of the 'finger print' [ usually the char pointer (char *), because it can contain both alphabets and numeric values, and each of finger-prints can take 1 byte for storage..
 */
-#define FINGER_PRINT_TYPE char* 
+#undef FINGER_PRINT_TYPE_IS_CHAR_PTR
+
+#if FINGER_PRINT_TYPE_IS_CHAR_PTR
+    #define FINGER_PRINT_TYPE char* 
+#else
+    #define FINGER_PRINT_TYPE char
+#endif
 
 
 /*
@@ -67,8 +74,9 @@ struct __cuckoo_filter
     The internal array that holds the list of all the available cuckoo filters.
 */
 struct __cuckoo_filter *__cuckoo_filter_list = NULL;
-
-
+static M_BIT_ARRAY_LENGTH_TYPE cuckoo_filters_count = 1;
+static M_BIT_ARRAY_LENGTH_TYPE total_bits_in_all_filters = 0;
+ 
 /*
     Function Returns the finger-print for the given input value.
     NOTE :- This API is not exposed to outside world..
@@ -115,41 +123,37 @@ M_BIT_ARRAY_LENGTH_TYPE __get_hash_2(FINGER_PRINT_TYPE finger_print, M_BIT_ARRAY
     Output : 1 - If cuckoo filter is created successfully.
              0 - If cuckoo filter creation fails.
 */
-short __create_cuckoo_filter(const char* __name, const int m_bit_size)
+short __create_cuckoo_filter(const char* __name, const int __total_no_of_elems_allowed)
 {
     //Check if the cuckoo filter can be created.
     //The max number of cuckoo filters that can be created depends on the amount of memory already allocated.
     //i.e. the total memory utilized by all cuckoo filters must not exceed 512MB (because my machine has RAM of 1GB only.
     //So if utilized memory is greater than 512MB, dont allocate/create any more filter.
-    static M_BIT_ARRAY_LENGTH_TYPE cuckoo_filters_count = 1;
-    static M_BIT_ARRAY_LENGTH_TYPE total_bits_in_all_filters = 0;
-    //float val = (float)m_bit_size;
+    M_BIT_ARRAY_LENGTH_TYPE m_bit_size = __total_no_of_elems_allowed * 8;//Total no of elements * bits reqd for each element (for storing 8-bit fingerprint value)
 
     if((total_bits_in_all_filters + m_bit_size) > __MAX_SUM_OF_BITS_OF_ALL_CUCKOO_FILTERS)
-        return 0;
+        return 0;//Cannot create a cuckoo filter, memory request exceeds the maximum limit.
 
     //Create cuckoo_filter_structure.
     struct __cuckoo_filter *new_filter = (struct __cuckoo_filter *)malloc(sizeof(struct __cuckoo_filter));
 
     if(NULL == new_filter)
-        return 0;
+        return 0;//Failed to allocate memory. Try again.
 
     strncpy(new_filter->__name,__name,MAX_CUCKOO_FILTER_NAME_LENGTH);
     new_filter->__name[MAX_CUCKOO_FILTER_NAME_LENGTH-1] = '\0';
     new_filter->__id = cuckoo_filters_count;
     new_filter->__m_bit_finger_print_array = NULL;
-    //new_filter->__m_bit_arr_len_in_bytes = ceil((float)(m_bit_size)/8.0);
+    new_filter->__m_bit_arr_len_in_bytes = __total_no_of_elems_allowed;//because 1 byte per item.
 
-    //ceil((float)(m_bit_size)/8.0);
-    new_filter->next = NULL;
-    int afl = ceil((float)(1.0)/2.0);
- 
+   new_filter->next = NULL;
+
     //Allocate 'n' pointers and assign..
     new_filter->__m_bit_finger_print_array =  (FINGER_PRINT_TYPE *)malloc(sizeof(FINGER_PRINT_TYPE) * new_filter->__m_bit_arr_len_in_bytes);
     
     //TO DO :- memset to all these allocated memory pointers is required.
     if(NULL == new_filter->__m_bit_finger_print_array)
-        return 0;
+        return 0;//Failed to allocate memory. Try again
 
     //We were successfully able to allocate memory to the cuckoo filter, now increment the necessary parameters and add into the cuckoo filters list.
     cuckoo_filters_count++;
@@ -159,12 +163,39 @@ short __create_cuckoo_filter(const char* __name, const int m_bit_size)
     if(NULL == __cuckoo_filter_list)
         __cuckoo_filter_list = new_filter;
     else
-        __cuckoo_filter_list -> next = new_filter;
+    {
+        //Insert the filter at the front of list.
+        new_filter -> next = __cuckoo_filter_list;
+        __cuckoo_filter_list = new_filter;
+    }
 
     return 1;//Return Success..
 
 }
 
+
+/*
+    Function to get the specified cuckoo filter.
+    Input :- name -- name of the cuckoo filter.
+    Output :- pointer to the cuckoo filter if it exists,
+              else NULL
+*/
+struct __cuckoo_filter * __get_filter_by_name(const char* name)
+{
+    if(NULL == __cuckoo_filter_list )
+       return NULL;//Cuckoo filter list is empty.. return NULL.
+    else
+    {
+       struct __cuckoo_filter * temp = __cuckoo_filter_list;
+       while(NULL != temp )
+       {
+            if(0 == strncmp(name,temp->__name,MAX_CUCKOO_FILTER_NAME_LENGTH))
+                return temp;
+            temp = temp->next;
+       }
+    }
+    return NULL;//The specified filter not found, return NULL..
+}
 
 /*
     Function that deletes the specified cuckoo filter.
@@ -176,10 +207,77 @@ short __create_cuckoo_filter(const char* __name, const int m_bit_size)
 short __delete_cuckoo_filter(const char* __name)
 {
     //Remove the cuckoo_filter_structure from the array
+    struct __cuckoo_filter* temp = __get_filter_by_name(__name);
+    if(NULL == temp)
+        return 0;//Filter not found, failed to delete.
 
     //De-allocate memory allocated for that cuckoo filter.
     //Free finger-print array (of all the pointers)
     //Free the cuckoo_filter.
+    else
+    {
+        if(temp == __cuckoo_filter_list)
+        {
+            //removing the first entry of the filter..
+            //so temp = __cuckoo_filter_list
+            //and __cuckoo_filter_list = __cuckoo_filter_next.
+            __cuckoo_filter_list = __cuckoo_filter_list -> next;
+
+        }
+        else//If we are not deleting the first node of filter.
+        {
+            struct __cuckoo_filter* prevFilter = __cuckoo_filter_list;//Assuming __cuckoo_filter_list always points to first entry..
+            while(NULL != prevFilter && prevFilter->next != temp)
+            {
+                prevFilter = prevFilter->next;
+            }
+            //assert(0 && "Previous node is NULL. Should not be NULL here");
+            assert(NULL != prevFilter);
+            if(prevFilter->next == temp)
+            {
+               prevFilter->next = temp->next;
+            }
+            else
+            {
+                assert(0 && "control should not reach here");
+            }
+        }
+        
+        //Finished deleting the filter from list.
+        //Start de-allocating the memory for that filter.
+        M_BIT_ARRAY_LENGTH_TYPE i = 0;
+
+
+    //The following is not required if the FINGER_PRINT_TYPE is not of character pointer type, but can be of any other pointer type (int *, float *, etc..) or simply of base type (int or float). Hence the following check is added.
+#ifdef  FINGER_PRINT_TYPE_IS_CHAR_PTR
+        //Freeing memory (allocated for fingerprints storage) pointed to by the individual pointers of m_bit_array. 
+        while(i < temp->__m_bit_array_len_in_bytes)
+        {
+            if(NULL != temp->__m_bit_finger_print_array[i])
+                free(*(temp->__m_bit_finger_print_array[i]));// Freeing memory of all the 8 bit finger-prints (actual contents of array).
+            temp->__m_bit_finger_print_array[i] = NULL;
+            i++;
+        }
+#endif
+        //Freeing memory utilized and allocated for the individual pointers of m_bit_array.
+        i = 0;
+        //Check once if the following logic is correct.
+        while(i < temp->__m_bit_arr_len_in_bytes)
+        {
+            free(temp->__m_bit_finger_print_array[i]);
+        }//Here logically the memory allocated to __m_bit_finter_print_array is freed. No need to do free(__m_bit_finter_print_array)
+        temp->__m_bit_finger_print_array = NULL;
+
+        //Now free the memory allocated to the filter itself.
+        free(temp);
+        temp = NULL;
+
+        cuckoo_filters_count--;
+        assert(cuckoo_filters_count > 0);
+
+        total_bits_in_all_filters -= temp->__m_bit_arr_len_in_bytes * 8;
+        assert(total_bits_in_all_filters > 0);
+    }//Finished deleting the cuckoo filter.
 }
 
 
