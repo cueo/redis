@@ -1,12 +1,14 @@
 /*
-  API's for cuckoo filter.
+  API's Visible to external sources for working with cuckoo filters.
 */
 
-unsigned int get_finger_print(int);
+short add_cuckoo_filter(const char* name,const unsigned int m_bit_length_in_bits);
 
-unsigned short create_cuckoo_filter(unsigned int);
+short insert_element(const char* name, const char* key);
 
-unsigned short insert_element(int);
+short delete_element(const char* name, const char* key);
 
+short is_member(const char* name, const char* key);
 
+short remove_cuckoo_filter(const char* name);
 
