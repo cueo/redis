@@ -1,10 +1,9 @@
 /*
   Implementing Cuckoo filter as a command interface to redis cli.
 */
-#include <math.h>
-//#include <assert.h>
+//#include <math.h>
 #include <stdio.h>
-#include <sys/types.h>
+//#include <sys/types.h>
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -34,6 +33,7 @@
 */
 //The above code is logically simplified as the follwoing.
 #define M_BIT_ARRAY_LENGTH_TYPE u_int32_t
+//#define M_BIT_ARRAY_LENGTH_TYPE uint32_t
 
 /*
     m_bit_array_id_type. There can be a maximum of 512*1024*1024 cuckoo filters (assuming that 8 bits are allocated for each entry/item of cuckoo filter. The number of allowed cuckoo filters is based on the total amount of memory utilized by the cuckoo filters.The total memory that can be utilized is given by MAX_SUM_OF_BITS_OF_ALL_CUCKOO_FILTERS constant). This count requires atleast 29 bits for storage and hence can be stored in 32 bits(nearest power of 2). Hence the type of this variable is int (which uses 32 bits).
@@ -46,13 +46,13 @@
 */
 #undef FINGER_PRINT_TYPE_IS_CHAR_PTR
 
-#if FINGER_PRINT_TYPE_IS_CHAR_PTR
-    #define FINGER_PRINT_TYPE char* 
+#ifdef FINGER_PRINT_TYPE_IS_CHAR_PTR
+    #define FINGER_PRINT_TYPE unsigned char* 
 #else
-    #define FINGER_PRINT_TYPE char
+    #define FINGER_PRINT_TYPE unsigned char
 #endif
 
-
+#define __MAX_CUCKOO_KICKS 100;
 /*
     The internal structure that holds the information about all the cuckoo filters.
 */
@@ -77,16 +77,198 @@ struct __cuckoo_filter *__cuckoo_filter_list = NULL;
 static M_BIT_ARRAY_LENGTH_TYPE cuckoo_filters_count = 1;
 static M_BIT_ARRAY_LENGTH_TYPE total_bits_in_all_filters = 0;
  
+
+/*List of implicit functions (not exposed to user)*/
+FINGER_PRINT_TYPE __get_pearson_8_bit_finger_print(unsigned const char *key);
+M_BIT_ARRAY_LENGTH_TYPE __murmur3_32_bit_hash(const char *key);
+FINGER_PRINT_TYPE __get_finger_print(const char* key);
+M_BIT_ARRAY_LENGTH_TYPE __get_hash_1(const char* key);
+M_BIT_ARRAY_LENGTH_TYPE __get_hash_2(FINGER_PRINT_TYPE finger_print, M_BIT_ARRAY_LENGTH_TYPE hash1);
+short __create_cuckoo_filter(const char* __name, const int __total_no_of_elems_allowed);
+struct __cuckoo_filter * __get_filter_by_id(const M_BIT_ARRAY_LENGTH_TYPE id);
+struct __cuckoo_filter * __get_filter_by_name(const char* name);
+short __insert_element(const char* name,const char* key);
+short __check_element(const char* name, const char* key);
+short __remove_element(const char* name, const char* key);
+short __remove_cuckoo_filter(const char* __name);
+short __is_bucket_empty(const struct *__cuckoo_filter my_filter, const M_BIT_ARRAY_LENGTH_TYPE index); 
+
+/*List of explicit functions (exposed to user)*/
+short add_cuckoo_filter(const char* name,const unsigned int m_bit_array_length_in_bits);
+short add_element(const char* name,const char* key);
+short is_member(const char* name, const char* key);
+short delete_element(const char* name, const char* key);
+short delete_cuckoo_filter(const char* name);
+
+
 /*
-    Function Returns the finger-print for the given input value.
+    Re-using pearsons algorithm.
+    Function returns 8-bit finger-print for a given key.
+    Input :- key -- key for which the finger print is generated.
+    Output :- 8-bit finger-print for the given key.
+    Pearsons_hash is much faster and non-cryptographic hash, also provides a perfect hash function.
+*/
+static FINGER_PRINT_TYPE __EMPTY_ELEMENT = 0;
+
+FINGER_PRINT_TYPE 
+__get_pearson_8_bit_finger_print(unsigned const char *key)
+{
+
+ unsigned int index=0;
+
+ //TO DO:- fix the hack.
+ //The 71st entry in the above table is set to 255 (removing the earlier value(0), because if value is 0, then the memory is considered to be empty.
+ 
+ 
+ static const FINGER_PRINT_TYPE __pearson_substitution_table[256] = 
+ {
+    // 256 values 0-255 in any (random) order suffices
+    98,  6, 85,150, 36, 23,112,164,135,207,169,  5, 26, 64,165,219, //  1
+
+    61, 20, 68, 89,130, 63, 52,102, 24,229,132,245, 80,216,195,115, //  2
+
+    90,168,156,203,177,120,  2,190,188,  7,100,185,174,243,162, 10, //  3
+
+    237, 18,253,225,  8,208,172,244,255,126,101, 79,145,235,228,121, //  4
+
+    123,251, 67,250,161,  107, 255, 97,241,111,181, 82,249, 33, 69, 55, //  5
+
+    59,153, 29,  9,213,167, 84, 93, 30, 46, 94, 75,151,114, 73,222, //  6
+
+    197, 96,210, 45, 16,227,248,202, 51,152,252,125, 81,206,215,186, //  7
+
+    39,158,178,187,131,136,  1, 49, 50, 17,141, 91, 47,129, 60, 99, //  8
+
+    154, 35, 86,171,105, 34, 38,200,147, 58, 77,118,173,246, 76,254, //  9
+
+    133,232,196,144,198,124, 53,  4,108, 74,223,234,134,230,157,139, // 10
+
+    189,205,199,128,176, 19,211,236,127,192,231, 70,233, 88,146, 44, // 11
+
+    183,201, 22, 83, 13,214,116,109,159, 32, 95,226,140,220, 57, 12, // 12
+
+    221, 31,209,182,143, 92,149,184,148, 62,113, 65, 37, 27,106,166, // 13
+
+    3, 14,204, 72, 21, 41, 56, 66, 28,193, 40,217, 25, 54,179,117, // 14
+
+    238, 87,240,155,180,170,242,212,191,163, 78,218,137,194,175,110, // 15
+
+    43,119,224, 71,122,142, 42,160,104, 48,247,103, 15, 11,138,239  // 16
+
+ };
+
+FINGER_PRINT_TYPE finger_print = __pearson_substitution_table[key[0] % 256];
+ 
+ unsigned int len = strlen(key);//May get memory out of range error..
+
+ for (index = 1; index < len; index++) 
+ {
+    finger_print = __pearson_substitution_table[finger_print ^ key[index]];
+ }
+ 
+ return finger_print;
+}
+
+
+/*
+    Function that provides 32-bit hash value for the given key.
+    Input :- key -- key for which the hash value is returned.
+    Output :- 32-bit hash value for the given key.
+    NOTE : This is faster and provides 32-bit hash value. Non-cryptographic algorithm.
+*/
+
+#define ROT32(x, y) ((x << y) | (x >> (32 - y))) // avoid effort
+
+M_BIT_ARRAY_LENGTH_TYPE 
+__murmur3_32_bit_hash(const char* key)
+{
+    static const u_int32_t c1 = 0xcc9e2d51;
+    static const u_int32_t c2 = 0x1b873593;
+    static const u_int32_t r1 = 15;
+    static const u_int32_t r2 = 13;
+    static const u_int32_t m = 5;
+    static const u_int32_t n = 0xe6546b64;
+    static const u_int32_t seed = 0x00000003;//This was actually the argument to this function.
+    M_BIT_ARRAY_LENGTH_TYPE hash = seed;
+    u_int32_t len = strlen(key);
+    const int nblocks = len / 4;
+    const u_int32_t *blocks = (const u_int32_t *) key;
+    int i;
+    u_int32_t k;
+
+    for (i = 0; i < nblocks; i++)
+    {
+        k = blocks[i];
+        k *= c1;
+        k = ROT32(k, r1);
+        k *= c2;
+        hash ^= k;
+        hash = ROT32(hash, r2) * m + n;
+    }
+
+    const u_int8_t *tail = (const u_int8_t *) (key + nblocks * 4);
+    u_int32_t k1 = 0;
+    switch (len & 3) 
+    {
+      case 3:
+           k1 ^= tail[2] << 16;
+      case 2:
+           k1 ^= tail[1] << 8;
+      case 1:
+           k1 ^= tail[0];
+           k1 *= c1;
+           k1 = ROT32(k1, r1);
+           k1 *= c2;
+           hash ^= k1;
+    }
+    
+    hash ^= len;
+    hash ^= (hash >> 16);
+    hash *= 0x85ebca6b;
+    hash ^= (hash >> 13);
+    hash *= 0xc2b2ae35;
+    hash ^= (hash >> 16);
+    return hash;
+}
+
+
+/*
+
+*/
+
+
+
+/*
+    Functions to check if the bucket entry(that holds the fingerprint) is empty.
+    Input : filter -- the cuckoo filter whose bucket is to be checked.
+            entry-index -- the entry index that is to be checked for emptyness.
+    Output : Returns 1 if bucket is empty.
+             Returns 0 if bucket is not empty.
+*/
+short ___is_bucket_empty(const struct * __cuckoo_filter my_filter, const M_BIT_ARRAY_LENGTH_TYPE index)
+{
+    assert(my_filter->__m_bit_finger_print_array);
+    
+    if(__EMPTY_ELEMENT == __m_bit_finger_print_array[index])
+        return 1;//Bucket entry is empty
+    
+    return 0;//Bucket entry is not empty
+}
+
+
+/*
     NOTE :- This API is not exposed to outside world..
     Input : key - Integer for which finger-print is generated.
     Output : Finger-Print for given key..
 */
 //M_BIT_ARRAY_CONTENT_TYPE __get_finger_print(int key)
-FINGER_PRINT_TYPE __get_finger_print(const char* key)
+FINGER_PRINT_TYPE 
+__get_finger_print(const char* key)
 {
-  return 0;
+  //User pearsons hashing technique for generating the 8-bit fingerprint for given key.
+  if(NULL == key)
+    return 0;
+  return __get_pearson_8_bit_finger_print(key);
 }//end of get_finger_print function
 
 
@@ -96,23 +278,27 @@ FINGER_PRINT_TYPE __get_finger_print(const char* key)
     Output :
         The first hash value which is the index to the m_bit_array.
 */
-M_BIT_ARRAY_LENGTH_TYPE __get_hash_1(const char* key, M_BIT_ARRAY_LENGTH_TYPE max_hash_value_limit)
+M_BIT_ARRAY_LENGTH_TYPE 
+__get_hash_1(const char* key)
 {
-    return 0;
+    if(NULL == key)
+        return 0;
+    return __murmur3_32_bit_hash(key);
 }
 
 
 /*
     Function returns the second hash value for the given key and first hash value.
-    Input : key -- The key for which first hash value is to be returned.
+    Input : finger_print -- The key for which first hash value is to be returned.
             hash1 -- The first hash value using which the second hash value is calculated.
     Output :
         The second hash value which is also the index to the m_bit_array.
 */
-M_BIT_ARRAY_LENGTH_TYPE __get_hash_2(FINGER_PRINT_TYPE finger_print, M_BIT_ARRAY_LENGTH_TYPE hash1, M_BIT_ARRAY_LENGTH_TYPE max_hash_value_limit)
+M_BIT_ARRAY_LENGTH_TYPE 
+__get_hash_2(FINGER_PRINT_TYPE finger_print, M_BIT_ARRAY_LENGTH_TYPE hash1)
 {
     //return hash1 XOR __get_hash_1(finger_print)
-    return 0;
+    return (hash1 ^ __get_hash_1(finger_print));
 }
 
 
@@ -123,7 +309,8 @@ M_BIT_ARRAY_LENGTH_TYPE __get_hash_2(FINGER_PRINT_TYPE finger_print, M_BIT_ARRAY
     Output : 1 - If cuckoo filter is created successfully.
              0 - If cuckoo filter creation fails.
 */
-short __create_cuckoo_filter(const char* __name, const int __total_no_of_elems_allowed)
+short 
+__create_cuckoo_filter(const char* __name, const int __total_no_of_elems_allowed)
 {
     //Check if the cuckoo filter can be created.
     //The max number of cuckoo filters that can be created depends on the amount of memory already allocated.
@@ -156,6 +343,7 @@ short __create_cuckoo_filter(const char* __name, const int __total_no_of_elems_a
         return 0;//Failed to allocate memory. Try again
 
     //We were successfully able to allocate memory to the cuckoo filter, now increment the necessary parameters and add into the cuckoo filters list.
+    memset(new_filter->__m_bit_finger_print_array,0,new_filter->__m_bit_arr_len_in_bytes);
     cuckoo_filters_count++;
     total_bits_in_all_filters+=m_bit_size;
 
@@ -180,7 +368,33 @@ short __create_cuckoo_filter(const char* __name, const int __total_no_of_elems_a
     Output :- pointer to the cuckoo filter if it exists,
               else NULL
 */
-struct __cuckoo_filter * __get_filter_by_name(const char* name)
+struct __cuckoo_filter * 
+__get_filter_by_id(const M_BIT_ARRAY_LENGTH_TYPE id)
+{
+    if(NULL == __cuckoo_filter_list )
+       return 0;//Cuckoo filter list is empty.. return NULL.
+    else
+    {
+       struct __cuckoo_filter * temp = __cuckoo_filter_list;
+       while(NULL != temp )
+       {
+            if(id == temp->__id)
+                return temp;
+            temp = temp->next;
+       }
+    }
+    return 0;//The specified filter not found, return NULL..
+}
+
+
+/*
+    Function to get the specified cuckoo filter.
+    Input :- name -- name of the cuckoo filter.
+    Output :- pointer to the cuckoo filter if it exists,
+              else NULL
+*/
+struct __cuckoo_filter * 
+__get_filter_by_name(const char* name)
 {
     if(NULL == __cuckoo_filter_list )
        return NULL;//Cuckoo filter list is empty.. return NULL.
@@ -198,16 +412,96 @@ struct __cuckoo_filter * __get_filter_by_name(const char* name)
 }
 
 /*
+    Function to insert values into cuckoo filter.
+    Input : key -- The item to be inserted into the cuckoo filter.
+            name -- The name of the cuckoo filter.
+    Output :
+        Returns 0 -- insertion is successful
+        Returns 1 -- insertion fails.
+*/
+short 
+__insert_element(const char* name,const char* key)
+{
+    if(NULL == name || NULL == key)
+        return 0;
+    
+    struct __cuckoo_filter* filter = NULL;
+
+    filter = __get_filter_by_name(name);
+    if(NULL == filter)
+        return 0;
+    
+    assert(filter->__m_bit_finger_print_array);
+
+    //get finger print for given key..
+    FINGER_PRINT_TYPE finger_print = __get_finger_print(key);
+    M_BIT_ARRAY_LENGTH_TYPE hash1 = __get_hash_1(key);
+    //This hash1 must be < finger_print array length.
+    hash1 = hash1 % filter->__m_bit_arr_len_in_bytes;
+
+    M_BIT_ARRAY_LENGTH_TYPE hash2 = __get_hash_2(finger_print,hash1);
+    //This hash2 must be < finger_print array length.
+    hash2 = hash2 % filter->__m_bit_arr_len_in_bytes;
+
+   //Insert into the bucket, to empty location.
+   if(__is_bucket_empty(filter,hash1))
+   {
+        //Fill this entry with the fingerprint.
+        return 1;
+   }
+   else if(__is_bucket_empty(filter,hash2))
+   {
+        //Fill this entry with the fingerprint.
+        return 1;
+   }
+   else
+   {
+        //The bucket entries were not empty. Find empty space and fill it with fingerprint.
+        return 1;
+   }
+   assert(0 && "Control should not reach here ");
+   return 0;//This should not be reached.
+}
+
+/*
+    Function to check if a key is present in the cuckoo filter set.
+    Input : name -- cuckoo filter in which the key is to be checked.
+             key -- The key to be checked for.
+    Output : 
+        Returns 0 -- if the key is not found.
+        Returns 1 -- if the key is found in the cuckoo filter 'name'
+*/
+short 
+__check_element(const char* name, const char* key)
+{
+}
+
+
+/*
+    Function to delete the key from cuckoo filter.
+    Input : key -- The key to be deleted from the cuckoo filter.
+            name -- The name of cuckoo filter from which the key is to be deleted.
+    Output : 
+            Returns 0 -- if key deletion fails.
+            Returns 1 -- if the key is deleted successfully.
+*/
+__remove_element(const char* name, const char* key)
+{
+
+}
+
+/*
     Function that deletes the specified cuckoo filter.
     Input : name -- Name of the cuckoo filter to be deleted.
     Output : 
             Returns 0 if cuckoo filter deletion fails.
             Returns 1 if the cuckoo filter is deleted.
 */
-short __delete_cuckoo_filter(const char* __name)
+short 
+__remove_cuckoo_filter(const char* __name)
 {
     //Remove the cuckoo_filter_structure from the array
-    struct __cuckoo_filter* temp = __get_filter_by_name(__name);
+    struct __cuckoo_filter* temp = __get_filter_by_name (__name);
     if(NULL == temp)
         return 0;//Filter not found, failed to delete.
 
@@ -265,6 +559,7 @@ short __delete_cuckoo_filter(const char* __name)
         while(i < temp->__m_bit_arr_len_in_bytes)
         {
             free(temp->__m_bit_finger_print_array[i]);
+            temp->__m_bit_finger_print_array[i] = NULL;
         }//Here logically the memory allocated to __m_bit_finter_print_array is freed. No need to do free(__m_bit_finter_print_array)
         temp->__m_bit_finger_print_array = NULL;
 
@@ -276,13 +571,12 @@ short __delete_cuckoo_filter(const char* __name)
         assert(cuckoo_filters_count > 0);
 
         total_bits_in_all_filters -= temp->__m_bit_arr_len_in_bytes * 8;
-        assert(total_bits_in_all_filters > 0);
+        assert(total_bits_in_all_filters >= 0);
     }//Finished deleting the cuckoo filter.
 }
 
 
 /*********************** API'S VISIBLE TO EXTERNAL SOURCES **************/
-
 
 /*
     Function adds a new cuckoo filter.
@@ -292,7 +586,8 @@ short __delete_cuckoo_filter(const char* __name)
         Returns 0 if cuckoo filter creation fails.
         Returns 1 if cuckoo filter creation is successful.
 */
-short add_cuckoo_filter(const char* name,const unsigned int m_bit_array_length_in_bits)
+short 
+add_cuckoo_filter(const char* name,const unsigned int m_bit_array_length_in_bits)
 {
     if(NULL == name || m_bit_array_length_in_bits <= 0 
         || (strnlen(name,MAX_CUCKOO_FILTER_NAME_LENGTH-1)
@@ -314,9 +609,12 @@ short add_cuckoo_filter(const char* name,const unsigned int m_bit_array_length_i
         Returns 1 -- insertion fails.
 */
 //unsigned short insert_element(const char* name, const int key)
-short insert_element(const char* name,const char* key)
+short 
+add_element(const char* name,const char* key)
 {
-    return 0;
+    if(NULL == name || NULL == key)
+        return 0;
+    return __insert_element(name,key);    
 }
 
 
@@ -329,7 +627,8 @@ short insert_element(const char* name,const char* key)
         Returns 1 -- if the key is found in the cuckoo filter 'name'
 */
 //unsigned short is_member(const char* name, const int key)
-short is_member(const char* name, const char* key)
+short 
+is_member(const char* name, const char* key)
 {
     return 0;
 }
@@ -343,7 +642,8 @@ short is_member(const char* name, const char* key)
             Returns 0 -- if key deletion fails.
             Returns 1 -- if the key is deleted successfully.
 */
-short delete_element(const char* name, const char* key)
+short 
+delete_element(const char* name, const char* key)
 {
     return 0;
 }
@@ -356,7 +656,11 @@ short delete_element(const char* name, const char* key)
         Return 0 -- if cuckoo filter is deleted successfully.
         Return 1 -- if cuckoo filter deletion fails.
 */
-short remove_cuckoo_filter(const char* name)
+short 
+delete_cuckoo_filter(const char* name)
 {
-    return 0;
+    if(NULL == name)
+        return 0;
+
+    return __delete_cuckoo_filter(name);
 }

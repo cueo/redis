@@ -4,11 +4,11 @@
 
 short add_cuckoo_filter(const char* name,const unsigned int m_bit_length_in_bits);
 
-short insert_element(const char* name, const char* key);
+short add_element(const char* name, const char* key);
 
 short delete_element(const char* name, const char* key);
 
 short is_member(const char* name, const char* key);
 
-short remove_cuckoo_filter(const char* name);
+short delete_cuckoo_filter(const char* name);
 

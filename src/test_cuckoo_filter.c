@@ -13,7 +13,7 @@ typedef enum user_options
 
 int main()
 {
-    printf("\nTesting Cuckoo Filter Implementation\n");
+    printf("\n********************Testing Cuckoo Filter Implementation****************\n");
     USER_OPTIONS option = NONE;
     unsigned int quit = 0;
 
