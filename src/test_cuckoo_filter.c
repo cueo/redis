@@ -40,7 +40,7 @@ int main()
                 break;
 
             case INSERT_KEY_INTO_FILTER :
-                insert_element("cuckoo_name","elem_1");
+                add_element("cuckoo_name","elem_1");
                 break;
 
             case DELETE_KEY_FROM_FILTER :
@@ -48,7 +48,7 @@ int main()
                 break;
 
             case DELETE_CUCKOO_FILTER :
-                remove_cuckoo_filter("cuckoo_name");
+                delete_cuckoo_filter("cuckoo_name");
                 break;
 
             case NONE :
