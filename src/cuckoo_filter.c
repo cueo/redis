@@ -137,6 +137,7 @@ short __is_bucket_empty(const struct __cuckoo_filter *my_filter, const M_BIT_ARR
 M_BIT_ARRAY_LENGTH_TYPE __getBucketNumber(const struct __cuckoo_filter * const ckFilter, M_BIT_ARRAY_LENGTH_TYPE elem_insertion_index);
 M_BIT_ARRAY_LENGTH_TYPE __getFirstIndexOfTheBucket(const struct __cuckoo_filter * const ckFilter, M_BIT_ARRAY_LENGTH_TYPE bucket_no);
 M_BIT_ARRAY_LENGTH_TYPE __getLastIndexOfTheBucket(const struct __cuckoo_filter * const ckFilter, M_BIT_ARRAY_LENGTH_TYPE bucket_no);
+void __remove_all_filters();
 
 //TO DO :- Add utility functions that display the parameters of the cuckoo filter i.e. like the contents of the filter, the % of space utilized, filter name, total size of cuckoo filter, no.. of buckets in cuckoo filter, size of each bucket of cuckoo filter etc..
 
@@ -152,6 +153,14 @@ void view_all_filters_details();
 */
 
 /********************  FUNCTIONS NOT EXPOSED TO EXTERNAL SOURCES  *************************/
+
+
+void __remove_all_filters()
+{
+    to do implement this thing..
+}
+
+
 
 /*
 	Functions that print the list of available cuckoo filters.
@@ -1200,4 +1209,10 @@ view_all_filters_details()
 {
 	__print_list_of_filters();	
 	return;
+}
+
+void 
+remove_all_filters()
+{
+    to do implement this thing..    
 }

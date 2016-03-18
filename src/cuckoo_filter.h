@@ -13,3 +13,5 @@ short delete_element(const char* name, const char* key);
 short delete_cuckoo_filter(const char* name);
 
 void view_all_filters_details();
+
+void remove_all_filters();
