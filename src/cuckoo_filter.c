@@ -25,7 +25,7 @@
 #ifdef TRACE
     //#error TRACE is defined
     #undef PRINT_TRACE
-    #define PRINT_TRACE(x) printf("\n [PRINT_TRACE] %s %s %s:%ld  ",__DATE__,__TIME__,__FILE__,(unsigned long)__LINE__); printf(x);printf("\n");
+    #define PRINT_TRACE(x) printf("\n [PRINT_TRACE] %s %s %s:%ld  \"",__DATE__,__TIME__,__FILE__,(unsigned long)__LINE__); printf(x);printf("\"\n");
     //printf("\n [PRINT_TRACE] %s %s %s %s",__DATE__,__TIME__,__FILE__,__LINE__);
 #endif
 
@@ -110,7 +110,7 @@ struct __cuckoo_filter
 /*
     The internal array that holds the list of all the available cuckoo filters.
 */
-struct __cuckoo_filter *__cuckoo_filter_list = NULL;
+struct __cuckoo_filter *__cuckoo_filter_list = NULL;//Pointer to first entry of the cuckoo filters list.
 static M_BIT_ARRAY_LENGTH_TYPE cuckoo_filters_count = 1;
 static M_BIT_ARRAY_LENGTH_TYPE total_bits_in_all_filters = 0;
  
@@ -132,7 +132,8 @@ short __insert_element(const char* name,const char* key);
 short __check_or_delete_element(const char* name, const char* key, short __should_delete_element);
 short __is_element_present_in_bucket(FINGER_PRINT_TYPE finger_print,M_BIT_ARRAY_LENGTH_TYPE bucket_no,const struct __cuckoo_filter* const my_filter,  M_BIT_ARRAY_LENGTH_TYPE * indexWhereElemIsPresent);
 short __remove_element(const char* name, const char* key);
-short __remove_cuckoo_filter(const char* __name);
+short __remove_filter_by_name(const char* __name);
+short __remove_specified_filter(struct __cuckoo_filter * temp);
 short __is_bucket_empty(const struct __cuckoo_filter *my_filter, const M_BIT_ARRAY_LENGTH_TYPE index,M_BIT_ARRAY_LENGTH_TYPE * indexOfEmptyElement);
 M_BIT_ARRAY_LENGTH_TYPE __getBucketNumber(const struct __cuckoo_filter * const ckFilter, M_BIT_ARRAY_LENGTH_TYPE elem_insertion_index);
 M_BIT_ARRAY_LENGTH_TYPE __getFirstIndexOfTheBucket(const struct __cuckoo_filter * const ckFilter, M_BIT_ARRAY_LENGTH_TYPE bucket_no);
@@ -155,9 +156,27 @@ void view_all_filters_details();
 /********************  FUNCTIONS NOT EXPOSED TO EXTERNAL SOURCES  *************************/
 
 
-void __remove_all_filters()
+/*
+    Function : Removes all the existing filters from memory.
+*/
+void 
+__remove_all_filters()
 {
-    to do implement this thing..
+    PRINT_TRACE("Removing all filters");
+    //to do implement this thing..
+    if(NULL == __cuckoo_filter_list)
+    {
+        PRINT_DEBUG("No filters exist");
+        return;
+    }
+
+    struct __cuckoo_filter * temp = __cuckoo_filter_list;
+    while(NULL != temp)
+    {
+        __remove_specified_filter(temp);
+        temp = __cuckoo_filter_list;
+    }
+    return;
 }
 
 
@@ -188,6 +207,8 @@ __print_list_of_filters()
 
 	PRINT_DEBUG("\n***************** LIST OF CUCKOO-FILTERS *****************************");
 }
+
+
 
 /*
 	Functions : Prints the filter-internal details.
@@ -257,7 +278,7 @@ __print_all_filter_details()
 short 
 __is_element_present_in_bucket(FINGER_PRINT_TYPE finger_print,M_BIT_ARRAY_LENGTH_TYPE bucket_no,const struct __cuckoo_filter* const my_filter, M_BIT_ARRAY_LENGTH_TYPE * indexWhereElemIsPresent)
 {
-    PRINT_TRACE("\"Checking if element is present in the specified bucket.\"");
+    PRINT_TRACE("Checking if element is present in the specified bucket.");
     assert(my_filter->__m_bit_finger_print_array);
     * indexWhereElemIsPresent = 0;
    
@@ -305,7 +326,7 @@ __getBucketNumber(const struct __cuckoo_filter* const ckFilter, M_BIT_ARRAY_LENG
 //#if PRINT_TRACE
     //printf("\n [PRINT_TRACE] Getting Bucket Number\n");
 //#endif
-    PRINT_TRACE("\"Getting Bucket Number\"");
+    PRINT_TRACE("Getting Bucket Number");
     
     //The size of each bucket, i.e. the number of elements that a single bucket can contain, is pre-defined.
     //The index will start from '0', but for calculation we need it to be started from 1, hence we will consider index+1.
@@ -328,7 +349,7 @@ __getFirstIndexOfTheBucket(const struct __cuckoo_filter * const ckFilter , M_BIT
 //#if PRINT_TRACE
     //printf("\n [PRINT_TRACE] Getting First Index\n");
 //#endif
-    PRINT_TRACE("\"Getting First Index\"");
+    PRINT_TRACE("Getting First Index");
     assert(bucket_no >= 1);
     M_BIT_ARRAY_LENGTH_TYPE firstIndex = 0;
     firstIndex = (__MAX_ELEMS_IN_A_BUCKET * (bucket_no - 1));
@@ -350,7 +371,7 @@ __getLastIndexOfTheBucket(const struct __cuckoo_filter * const ckFilter, M_BIT_A
 // #if PRINT_TRACE
     //printf("\n [PRINT_TRACE] Getting Last Index\n");
 //#endif   assert(bucket_no >= 1);
-    PRINT_TRACE("\"Getting Last Index\"");
+    PRINT_TRACE("Getting Last Index");
     M_BIT_ARRAY_LENGTH_TYPE lastIndex = 0;
     lastIndex = (__MAX_ELEMS_IN_A_BUCKET * bucket_no) - 1;
     //assert(lastIndex >= 0 && lastIndex <= ckFilter->__m_bit_arr_len_in_bytes - 1);//The second condition is not true always.
@@ -376,7 +397,7 @@ __get_pearson_8_bit_finger_print(unsigned const char *key)
 //#if PRINT_TRACE
     //printf("\n [PRINT_TRACE] Calculating Finger-Print\n");
 //#endif
- PRINT_TRACE("\"Calculating Finger-Print\"");
+ PRINT_TRACE("Calculating Finger-Print");
  unsigned int index=0;
 
  //TO DO:- fix the hack.
@@ -450,7 +471,7 @@ __murmur3_32_bit_hash(const char* key)
 // #if PRINT_TRACE
     //printf("\n [PRINT_TRACE] Calculating Hash Code\n");
 //#endif
-    PRINT_TRACE("\"Calculating Hash Code\"");
+    PRINT_TRACE("Calculating Hash Code");
     static const u_int32_t c1 = 0xcc9e2d51;
     static const u_int32_t c2 = 0x1b873593;
     static const u_int32_t r1 = 15;
@@ -510,12 +531,13 @@ __murmur3_32_bit_hash(const char* key)
     Output : Returns 1 if bucket is empty.
              Returns 0 if bucket is not empty.
 */
-short __is_bucket_empty(const struct  __cuckoo_filter *my_filter, const M_BIT_ARRAY_LENGTH_TYPE bucket_no, M_BIT_ARRAY_LENGTH_TYPE * indexOfEmptyElement)
+short 
+__is_bucket_empty(const struct  __cuckoo_filter *my_filter, const M_BIT_ARRAY_LENGTH_TYPE bucket_no, M_BIT_ARRAY_LENGTH_TYPE * indexOfEmptyElement)
 {
 // #if PRINT_TRACE
     //printf("\n [PRINT_TRACE] Checking for Empty Bucket\n");
 //#endif
-    PRINT_TRACE("\"Checking for Empty Bucket\"");
+    PRINT_TRACE("Checking for Empty Bucket");
     assert(my_filter->__m_bit_finger_print_array);
    
     //get starting index of bucket in the given filter...
@@ -563,7 +585,7 @@ __get_finger_print(const char* key)
 // #if PRINT_TRACE
     //printf("\n [PRINT_TRACE] Getting Finger-Print\n");
 //#endif //User pearsons hashing technique for generating the 8-bit fingerprint for given key.
-  PRINT_TRACE("\"Getting Finger-Print\"");
+  PRINT_TRACE("Getting Finger-Print");
   if(NULL == key)
     return 0;
   return __get_pearson_8_bit_finger_print(key);
@@ -582,7 +604,7 @@ __get_hash_1(const char* key)
 //#if PRINT_TRACE
     //printf("\n [PRINT_TRACE] Getting First Hash\n");
 //#endif
-    PRINT_TRACE("\"Getting First Hash\"");
+    PRINT_TRACE("Getting First Hash");
     if(NULL == key)
         return 0;
     return __murmur3_32_bit_hash(key);
@@ -602,7 +624,7 @@ __get_hash_2(FINGER_PRINT_TYPE finger_print, M_BIT_ARRAY_LENGTH_TYPE hash1)
 // #if PRINT_TRACE
     //printf("\n [PRINT_TRACE] Getting Second Hash\n");
 //#endif
-     PRINT_TRACE("\"Getting Second Hash\"");
+     PRINT_TRACE("Getting Second Hash");
     //return hash1 XOR __get_hash_1(finger_print)
     return (hash1 ^ __get_hash_1(&finger_print));
 }
@@ -621,7 +643,7 @@ __create_cuckoo_filter(const char* __name, const long long unsigned int __total_
 //#if PRINT_TRACE
     //printf("\n [PRINT_TRACE] Creating Cuckoo Filter Named '%s' \n",__name);
 //#endif
-    PRINT_TRACE("\"Creating Cuckoo Filter\"");
+    PRINT_TRACE("Creating Cuckoo Filter");
 
     //If filter from specified name already exists, don't create again.
     if(NULL != __get_filter_by_name(__name))
@@ -696,7 +718,7 @@ That will be allocated in bits is %llu",
 
     //PRINT_DEBUG("\"Cuckoo Filter named %s has been created successfully.\",new_filter->__name");
     //PRINT_DEBUG("Cuckoo Filter named %s has been created successfully.",new_filter->__name);
-    sprintf(temp_char_arr,"\"Cuckoo Filter named \'%s\' has been created successfully.\"",new_filter->__name);
+    sprintf(temp_char_arr,"Cuckoo Filter named \'%s\' has been created successfully.",new_filter->__name);
     PRINT_DEBUG(temp_char_arr);
 
     __print_filter_details(new_filter);
@@ -713,7 +735,7 @@ That will be allocated in bits is %llu",
 struct __cuckoo_filter * 
 __get_filter_by_id(const M_BIT_ARRAY_LENGTH_TYPE id)
 {
-    PRINT_TRACE("\"Finding Filter by ID\"");
+    PRINT_TRACE("Finding Filter by ID");
     if(NULL == __cuckoo_filter_list )
        return 0;//Cuckoo filter list is empty.. return NULL.
     else
@@ -745,7 +767,7 @@ __get_filter_by_id(const M_BIT_ARRAY_LENGTH_TYPE id)
 struct __cuckoo_filter * 
 __get_filter_by_name(const char* name)
 {
-    PRINT_TRACE("\"Finding Filter By Name\"");
+    PRINT_TRACE("Finding Filter By Name");
     if(NULL == __cuckoo_filter_list )
        return NULL;//Cuckoo filter list is empty.. return NULL.
     else
@@ -778,7 +800,7 @@ __get_filter_by_name(const char* name)
 short 
 __insert_element(const char* name,const char* key)
 {
-    PRINT_TRACE("\"Adding Element to Filter\"");
+    PRINT_TRACE("Adding Element to Filter");
     if(NULL == name || NULL == key)
         return 0;
     
@@ -904,6 +926,7 @@ __insert_element(const char* name,const char* key)
     return 0;//This should not be reached.
 }
 
+
 /*
     Function to check if a key is present in the cuckoo filter set.
     Input : name -- cuckoo filter in which the key is to be checked.
@@ -915,7 +938,7 @@ __insert_element(const char* name,const char* key)
 short 
 __check_or_delete_element(const char* name, const char* key, short __should_delete_element)
 {
-    PRINT_TRACE("\"Checking Element Existence.\"");
+    PRINT_TRACE("Checking Element Existence.");
 
      if(NULL == name || NULL == key)
         return 0;
@@ -1012,9 +1035,9 @@ __remove_element(const char* name, const char* key)
             Returns 1 if the cuckoo filter is deleted.
 */
 short 
-__remove_cuckoo_filter(const char* __name)
+__remove_filter_by_name(const char* __name)
 {
-     PRINT_TRACE("\"Removing Filter\"");
+     PRINT_TRACE("Removing Filter");
     //Remove the cuckoo_filter_structure from the array
     struct __cuckoo_filter* temp = __get_filter_by_name (__name);
     if(NULL == temp)
@@ -1025,80 +1048,103 @@ __remove_cuckoo_filter(const char* __name)
     //Free the cuckoo_filter.
     else
     {
-        if(temp == __cuckoo_filter_list)
-        {
-            //removing the first entry of the filter..
-            //so temp = __cuckoo_filter_list
-            //and __cuckoo_filter_list = __cuckoo_filter_next.
-            if(NULL != temp->next)
-            {
-            	__cuckoo_filter_list = __cuckoo_filter_list -> next;
-            }
-            else
-            	__cuckoo_filter_list = NULL;
-
-        }
-        else//If we are not deleting the first node of filter.
-        {
-            struct __cuckoo_filter* prevFilter = __cuckoo_filter_list;//Assuming __cuckoo_filter_list always points to first entry..
-            while(NULL != prevFilter && prevFilter->next != temp)
-            {
-                prevFilter = prevFilter->next;
-            }
-            //assert(0 && "Previous node is NULL. Should not be NULL here");
-            assert(NULL != prevFilter);
-            if(prevFilter->next == temp)
-            {
-               prevFilter->next = temp->next;
-            }
-            else
-            {
-                assert(0 && "control should not reach here");
-            }
-        }
-        
-        //Finished deleting the filter from list.
-        //Start de-allocating the memory for that filter.
-        M_BIT_ARRAY_LENGTH_TYPE i = 0;
-
-        //The following is not required if the FINGER_PRINT_TYPE is not of character pointer type, but can be of any other pointer type (int *, float *, etc..) or simply of base type (int or float). Hence the following check is added.
-#ifdef  FINGER_PRINT_TYPE_IS_CHAR_PTR
-        //Freeing memory (allocated for fingerprints storage) pointed to by the individual pointers of m_bit_array. 
-        while(i < temp->__m_bit_array_len_in_bytes)
-        {
-            if(NULL != temp->__m_bit_finger_print_array[i])
-                free(*(temp->__m_bit_finger_print_array[i]));// Freeing memory of all the 8 bit finger-prints (actual contents of array).
-            temp->__m_bit_finger_print_array[i] = NULL;
-            i++;
-        }
-#endif
-        //Freeing memory utilized and allocated for the individual pointers of m_bit_array.
-        /*
-        //Check once if the following logic is correct.
-        i = 0;
-        while(i < temp->__m_bit_arr_len_in_bytes)
-        {
-            free(temp->__m_bit_finger_print_array[i]);
-            temp->__m_bit_finger_print_array[i] = NULL;
-        }//Here logically the memory allocated to __m_bit_finter_print_array is freed. No need to do free(__m_bit_finter_print_array)
-        */
-        
-        free(temp->__m_bit_finger_print_array);
-        temp->__m_bit_finger_print_array = NULL;
-
-        total_bits_in_all_filters -= temp->__m_bit_arr_len_in_bytes * 8;
-
-        //Now free the memory allocated to the filter itself.
-        free(temp);
-        temp = NULL;
-
-        cuckoo_filters_count--;
-        assert(cuckoo_filters_count > 0);
-
-        assert(total_bits_in_all_filters >= 0);
-
-        __print_list_of_filters();
+        return __remove_specified_filter(temp);
     }//Finished deleting the cuckoo filter.
+}
+
+
+/*
+    Function : Removes the specified filter from the list.
+    Input : filter - The pointer to the filter that is to be removed.
+    Output : 1 - If the filter was removed successfully.
+             0 - Failed to remove the specified filter.
+*/
+short 
+__remove_specified_filter(struct __cuckoo_filter* temp)
+{
+    PRINT_TRACE("Removing Specified Filter");
+
+    if(NULL == temp)
+    {
+        PRINT_DEBUG("Invalid filter specified");
+        return 0;
+    }
+
+    if(temp == __cuckoo_filter_list)
+    {
+        //removing the first entry of the filter..
+        //so temp = __cuckoo_filter_list
+        //and __cuckoo_filter_list = __cuckoo_filter_next.
+        if(NULL != temp->next)
+        {
+            __cuckoo_filter_list = __cuckoo_filter_list -> next;
+        }
+        else
+            __cuckoo_filter_list = NULL;
+
+    }
+    else//If we are not deleting the first node of filter.
+    {
+        struct __cuckoo_filter* prevFilter = __cuckoo_filter_list;//Assuming __cuckoo_filter_list always points to first entry..
+        while(NULL != prevFilter && prevFilter->next != temp)
+        {
+            prevFilter = prevFilter->next;
+        }
+        //assert(0 && "Previous node is NULL. Should not be NULL here");
+        assert(NULL != prevFilter);
+        if(prevFilter->next == temp)
+        {
+           prevFilter->next = temp->next;
+        }
+        else
+        {
+            assert(0 && "control should not reach here");
+        }
+    }
+    
+    //Finished deleting the filter from list.
+    //Start de-allocating the memory for that filter.
+    M_BIT_ARRAY_LENGTH_TYPE i = 0;
+
+    //The following is not required if the FINGER_PRINT_TYPE is not of character pointer type, but can be of any other pointer type (int *, float *, etc..) or simply of base type (int or float). Hence the following check is added.
+#ifdef  FINGER_PRINT_TYPE_IS_CHAR_PTR
+    //Freeing memory (allocated for fingerprints storage) pointed to by the individual pointers of m_bit_array. 
+    while(i < temp->__m_bit_array_len_in_bytes)
+    {
+        if(NULL != temp->__m_bit_finger_print_array[i])
+            free(*(temp->__m_bit_finger_print_array[i]));// Freeing memory of all the 8 bit finger-prints (actual contents of array).
+        temp->__m_bit_finger_print_array[i] = NULL;
+        i++;
+    }
+#endif
+    //Freeing memory utilized and allocated for the individual pointers of m_bit_array.
+    /*
+    //Check once if the following logic is correct.
+    i = 0;
+    while(i < temp->__m_bit_arr_len_in_bytes)
+    {
+        free(temp->__m_bit_finger_print_array[i]);
+        temp->__m_bit_finger_print_array[i] = NULL;
+    }//Here logically the memory allocated to __m_bit_finter_print_array is freed. No need to do free(__m_bit_finter_print_array)
+    */
+    
+    free(temp->__m_bit_finger_print_array);
+    temp->__m_bit_finger_print_array = NULL;
+
+    total_bits_in_all_filters -= temp->__m_bit_arr_len_in_bytes * 8;
+
+    //Now free the memory allocated to the filter itself.
+    free(temp);
+    temp = NULL;
+
+    cuckoo_filters_count--;
+    assert(cuckoo_filters_count > 0);
+
+    assert(total_bits_in_all_filters >= 0);
+
+    __print_list_of_filters();
+    PRINT_DEBUG("Successfully Removed Specified Filter");
+    return 1;
 }
 
 
@@ -1115,7 +1161,7 @@ __remove_cuckoo_filter(const char* __name)
 short 
 add_cuckoo_filter(const char* name,const long long unsigned int m_bit_array_length_in_bits)
 {
-    PRINT_TRACE("\"Adding cuckoo filter.\"");
+    PRINT_TRACE("Adding cuckoo filter.");
     if(NULL == name || m_bit_array_length_in_bits <= 0 
         || (strnlen(name,MAX_CUCKOO_FILTER_NAME_LENGTH-1)
         >= (MAX_CUCKOO_FILTER_NAME_LENGTH-1))
@@ -1139,7 +1185,7 @@ add_cuckoo_filter(const char* name,const long long unsigned int m_bit_array_leng
 short 
 add_element(const char* name,const char* key)
 {
-    PRINT_TRACE("\"Adding element to cuckoo filter\"");
+    PRINT_TRACE("Adding element to cuckoo filter");
     if(NULL == name || NULL == key)
         return 0;
     return __insert_element(name,key);    
@@ -1158,7 +1204,7 @@ add_element(const char* name,const char* key)
 short 
 is_member(const char* name, const char* key)
 {
-    PRINT_TRACE("\"Checking if element is member of filter.\"");
+    PRINT_TRACE("Checking if element is member of filter.");
     if(NULL == name || NULL == key)
         return 0;
 
@@ -1177,7 +1223,7 @@ is_member(const char* name, const char* key)
 short 
 delete_element(const char* name, const char* key)
 {
-    PRINT_TRACE("\"Deleting element from filter\"");
+    PRINT_TRACE("Deleting element from filter");
     if(NULL == name || NULL == key)
         return 0;
 
@@ -1195,24 +1241,34 @@ delete_element(const char* name, const char* key)
 short 
 delete_cuckoo_filter(const char* name)
 {
-    PRINT_TRACE("\"Deleting filter.\"");
+    PRINT_TRACE("Deleting filter.");
  
     if(NULL == name)
         return 0;
 
-    return __remove_cuckoo_filter(name);
+    return __remove_filter_by_name(name);
 }
 
 
+/*
+    Function : Prints the list of created filters.
+*/
 void 
 view_all_filters_details()
 {
+    PRINT_TRACE("Displaying all filters details.");
 	__print_list_of_filters();	
 	return;
 }
 
+
+/*
+    Function : Removes all the created filters.
+*/
 void 
 remove_all_filters()
 {
-    to do implement this thing..    
+    PRINT_TRACE("Removing all filters.");
+    __remove_all_filters();
+    return;
 }
