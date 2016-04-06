@@ -10,14 +10,14 @@
 
 #ifdef DEBUG
     #undef PRINT_DEBUG
-	#ifndef TRACE
-		#define TRACE
-	#endif
-    char temp_char_arr[1024];
+    #ifndef TRACE
+        #define TRACE
+    #endif
     #define PRINT_DEBUG(x) printf("\n [PRINT_DEBUG] %s %s %s:%ld  \"",__DATE__,__TIME__,__FILE__,(unsigned long)__LINE__); printf(x);  printf("\"\n");
             //printf("\n [PRINT_DEBUG] %s %s %s %s",__DATE__,__TIME__,__FILE__,__LINE__);\
     //#error DEBUG is defined.
 #endif
+char temp_char_arr[1024];
 
 
 #define PRINT_TRACE(X) ;
