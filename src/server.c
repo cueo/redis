@@ -296,7 +296,12 @@ struct redisCommand redisCommandTable[] = {
     {"pfcount",pfcountCommand,-2,"r",0,NULL,1,-1,1,0,0},
     {"pfmerge",pfmergeCommand,-2,"wm",0,NULL,1,-1,1,0,0},
     {"pfdebug",pfdebugCommand,-3,"w",0,NULL,0,0,0,0,0},
-    {"latency",latencyCommand,-2,"arslt",0,NULL,0,0,0,0,0}
+    {"latency",latencyCommand,-2,"arslt",0,NULL,0,0,0,0,0},
+    {"cuckoocreate",cuckoocreateCommand,3,"wm",0,NULL,1,1,1,0,0},//commandName filterName(arg-1) sizeofFilter
+    {"cuckooinsertelement",cuckooinsertelementCommand,-3,"wm",0,NULL,1,1,1,0,0},//commandName filterName(arg-1) val1 val2 ...
+    {"cuckooremoveelement",cuckooremoveelementCommand,-3,"wm",0,NULL,1,1,1,0,0},//commandName filterName(arg-1) val1 val2 ...
+    {"cuckoocheckelement",cuckoocheckelementCommand,-3,"wm",0,NULL,1,1,1,0,0}//commandName filterName(arg-1) val1 val2 ...
+
 };
 
 struct evictionPoolEntry *evictionPoolAlloc(void);

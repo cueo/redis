@@ -1669,6 +1669,11 @@ void latencyCommand(client *c);
 void bfcreateCommand(client *c);
 void bfaddCommand(client *c);
 void bfmatchCommand(client *c);
+/*Cuckoo filter related commands. */
+void cuckoocreateCommand(client* c);
+void cuckooinsertelementCommand(client* c);
+void cuckooremoveelementCommand(client* c);
+void cuckoocheckelementCommand(client* c);
 
 #if defined(__GNUC__)
 void *calloc(size_t count, size_t size) __attribute__ ((deprecated));
