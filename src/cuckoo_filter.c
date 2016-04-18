@@ -169,8 +169,12 @@ __getLastIndexOfTheBucket(const struct __cuckoo_filter * const ckFilter, M_BIT_A
     //PRINT_TRACE("Getting Last Index");
     M_BIT_ARRAY_LENGTH_TYPE lastIndex = 0;
     lastIndex = (__MAX_ELEMS_IN_A_BUCKET * bucket_no) - 1;
-    //assert(lastIndex >= 0 && lastIndex <= ckFilter->__m_bit_arr_len_in_bytes - 1);//The second condition is not true always.
-    assert(lastIndex >= 0);
+    //But last index should always be <= to the final address allocated to the filter, hence following is required.
+    if(lastIndex >= ckFilter->__m_bit_arr_len_in_bytes)
+        lastIndex = ckFilter->__m_bit_arr_len_in_bytes - 1;
+
+    assert(lastIndex >= 0 && lastIndex <= ckFilter->__m_bit_arr_len_in_bytes - 1);
+
     //sprintf(temp_char_arr,"last index of bucket %d is %d",bucket_no,lastIndex);
     //PRINT_DEBUG(temp_char_arr);
     return lastIndex;
@@ -682,7 +686,7 @@ __remove_specified_filter(struct __cuckoo_filter* temp)
 
     //Finished deleting the filter from list.
     //Start de-allocating the memory for that filter.
-    M_BIT_ARRAY_LENGTH_TYPE i = 0;
+    //M_BIT_ARRAY_LENGTH_TYPE i = 0;
 
     
     free(temp->__m_bit_finger_print_array);
@@ -765,6 +769,7 @@ static inline size_t buflen(uint64_t m)
 void 
 cuckoocreateCommand(client *c)
 {
+    printf("Creating cuckoo filter");
     robj *o;
     long m;
     size_t byte;
@@ -801,7 +806,7 @@ cuckoocreateCommand(client *c)
     new_filter->__m_bit_finger_print_array = (FINGER_PRINT_TYPE *)(new_filter + 1);
     
     signalModifiedKey(c->db,c->argv[1]);
-    notifyKeyspaceEvent(NOTIFY_STRING,"bfcreate",c->argv[1],c->db->id);
+    notifyKeyspaceEvent(NOTIFY_STRING,"cuckoocreate",c->argv[1],c->db->id);
     server.dirty++;
     addReply(c,shared.ok);
 }
@@ -831,7 +836,7 @@ void cuckooinsertelementCommand(client *c) {
 
     filter = (struct __cuckoo_filter*)o->ptr;
     //byte = buflen(filter->m);
-    byte = buflen(filter->__m_bit_finger_print_array);
+    byte = buflen(filter->__m_bit_arr_len_in_bytes);
     buf = (char*)(filter + 1);
     if (len != byte) {
         addReplyError(c,err);
@@ -839,19 +844,26 @@ void cuckooinsertelementCommand(client *c) {
     }
 
 
+    /*
+    //Initially we support only one element insertion at a time...
+    for(i = 2; i<3;i++) {
+    */
     addReplyMultiBulkLen(c,c->argc-2);
     for (i = 2; i < c->argc; i++) {
-        if(__insert_element(filter,c->argv[i]))
+        //all the arguments are considered as robj's internally.
+        //So instead of sending c->argv[i], send (c->argv[i])->ptr
+        //if(__insert_element(filter,c->argv[i]))
+        if(__insert_element(filter,(c->argv[i])->ptr))
             addReply(c,shared.cone);
         else
             addReply(c,shared.czero);
     }
 
     signalModifiedKey(c->db,c->argv[1]);
-    notifyKeyspaceEvent(NOTIFY_STRING,"bfadd",c->argv[1],c->db->id);
+    notifyKeyspaceEvent(NOTIFY_STRING,"cuckooinsertelement",c->argv[1],c->db->id);
     server.dirty++;
     
-    addReply(c,shared.ok);
+    //addReply(c,shared.ok);
 }
 
 
@@ -877,26 +889,33 @@ void cuckooremoveelementCommand(client *c) {
 
     filter = (struct __cuckoo_filter*)o->ptr;
     //byte = buflen(filter->m);
-    byte = buflen(filter->__m_bit_finger_print_array);
+    byte = buflen(filter->__m_bit_arr_len_in_bytes);
     buf = (char*)(filter + 1);
     if (len != byte) {
         addReplyError(c,err);
         return;
     }
 
+    /*
+    //Initially we support only one element deletion at a time.
+    for (i = 2; i < 3; i++) {
+    */
     addReplyMultiBulkLen(c,c->argc-2);
     for (i = 2; i < c->argc; i++) {
-        if(delete_element(filter,c->argv[i]))
+        //all the arguments are considered as robj's internally.
+        //So instead of sending c->argv[i], send (c->argv[i])->ptr
+        //if(delete_element(filter,c->argv[i]))
+        if(delete_element(filter,(c->argv[i])->ptr))
             addReply(c,shared.cone);
         else
             addReply(c,shared.czero);
     }
 
     signalModifiedKey(c->db,c->argv[1]);
-    notifyKeyspaceEvent(NOTIFY_STRING,"bfadd",c->argv[1],c->db->id);
+    notifyKeyspaceEvent(NOTIFY_STRING,"cuckooremoveelement",c->argv[1],c->db->id);
     server.dirty++;
     
-    addReply(c,shared.ok);
+    //addReply(c,shared.ok);
 }
 
 
@@ -922,24 +941,31 @@ void cuckoocheckelementCommand(client *c) {
 
     filter = (struct __cuckoo_filter*)o->ptr;
     //byte = buflen(filter->m);
-    byte = buflen(filter->__m_bit_finger_print_array);
+    byte = buflen(filter->__m_bit_arr_len_in_bytes);
     buf = (char*)(filter + 1);
     if (len != byte) {
         addReplyError(c,err);
         return;
     }
 
+    /*
+    // Initially only one element can be checked for existence at a time.
+    for (i = 2; i < 3; i++) {
+    */
     addReplyMultiBulkLen(c,c->argc-2);
     for (i = 2; i < c->argc; i++) {
-        if(is_member(filter,c->argv[i]))
+        //all the arguments are considered as robj's internally.
+        //So instead of sending c->argv[i], send (c->argv[i])->ptr
+        //if(is_member(filter,c->argv[i]))
+        if(is_member(filter,(c->argv[i])->ptr))
             addReply(c,shared.cone);
         else
             addReply(c,shared.czero);
     }
 
     signalModifiedKey(c->db,c->argv[1]);
-    notifyKeyspaceEvent(NOTIFY_STRING,"bfadd",c->argv[1],c->db->id);
+    notifyKeyspaceEvent(NOTIFY_STRING,"cuckoocheckelement",c->argv[1],c->db->id);
     server.dirty++;
     
-    addReply(c,shared.ok);
+    //addReply(c,shared.ok);
 }
