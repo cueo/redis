@@ -16,7 +16,7 @@
 /*A bucket can hold a  max of 8 entries/elements (elements conatin 1 finger-print(8-bit) each.*/
 #define __MAX_ELEMS_IN_A_BUCKET 8
 
-#define __MAX_CUCKOO_KICKS 100
+#define __MAX_CUCKOO_KICKS 500
 
 /*
     The internal structure that holds the information about all the cuckoo filters.
@@ -73,7 +73,7 @@ short delete_element(struct __cuckoo_filter* filter, const char* key);
 short 
 __is_element_present_in_bucket(FINGER_PRINT_TYPE finger_print,M_BIT_ARRAY_LENGTH_TYPE bucket_no,const struct __cuckoo_filter* const my_filter, M_BIT_ARRAY_LENGTH_TYPE * indexWhereElemIsPresent)
 {
-    //PRINT_TRACE("Checking if element is present in the specified bucket.");
+    serverLog(LL_NOTICE,"Checking if element is present in the specified bucket.");
     assert(my_filter->__m_bit_finger_print_array);
     * indexWhereElemIsPresent = 0;
    
@@ -97,14 +97,14 @@ __is_element_present_in_bucket(FINGER_PRINT_TYPE finger_print,M_BIT_ARRAY_LENGTH
 //#endif
             *indexWhereElemIsPresent = iterIndex;
             
-            //sprintf(temp_char_arr,"The bucket contains the fingerprint %c",finger_print);
-            //PRINT_DEBUG(temp_char_arr);
+            serverLog(LL_VERBOSE,"The bucket contains the fingerprint %c",finger_print);
+            
             return 1;//Bucket entry is empty
         }
     }
 
-    //sprintf(temp_char_arr,"The bucket doesn't contain the fingerprint %c",finger_print);
-    //PRINT_DEBUG(temp_char_arr);
+    serverLog(LL_VERBOSE,"The bucket doesn't contain the fingerprint %c",finger_print);
+    
     return 0;
 }
 
@@ -121,13 +121,13 @@ __getBucketNumber(const struct __cuckoo_filter* const ckFilter, M_BIT_ARRAY_LENG
 //#if PRINT_TRACE
     //printf("\n [PRINT_TRACE] Getting Bucket Number\n");
 //#endif
-    //PRINT_TRACE("Getting Bucket Number");
+    serverLog(LL_NOTICE,"Getting Bucket Number");
     
     //The size of each bucket, i.e. the number of elements that a single bucket can contain, is pre-defined.
     //The index will start from '0', but for calculation we need it to be started from 1, hence we will consider index+1.
    M_BIT_ARRAY_LENGTH_TYPE  bucketNo = ceil((elem_insertion_index + 1)/(float)(__MAX_ELEMS_IN_A_BUCKET));
-   //sprintf(temp_char_arr,"bucket_no : %d",bucketNo);
-   //PRINT_DEBUG(temp_char_arr);
+   serverLog(LL_VERBOSE,"bucket_no : %d",bucketNo);
+   
    assert(bucketNo >= 1 && bucketNo <= ckFilter->__total_no_of_buckets);
    return bucketNo;
 }
@@ -144,13 +144,13 @@ __getFirstIndexOfTheBucket(const struct __cuckoo_filter * const ckFilter , M_BIT
 //#if PRINT_TRACE
     //printf("\n [PRINT_TRACE] Getting First Index\n");
 //#endif
-    //PRINT_TRACE("Getting First Index");
+    serverLog(LL_NOTICE,"Getting First Index");
     assert(bucket_no >= 1);
     M_BIT_ARRAY_LENGTH_TYPE firstIndex = 0;
     firstIndex = (__MAX_ELEMS_IN_A_BUCKET * (bucket_no - 1));
     assert(firstIndex >= 0 && firstIndex <= ckFilter->__m_bit_arr_len_in_bytes - 1);
-    //sprintf(temp_char_arr,"first index of bucket %d is %d",bucket_no,firstIndex);
-    //PRINT_DEBUG(temp_char_arr);
+    serverLog(LL_VERBOSE,"first index of bucket %d is %d",bucket_no,firstIndex);
+    
     return firstIndex;
 }
 
@@ -166,7 +166,7 @@ __getLastIndexOfTheBucket(const struct __cuckoo_filter * const ckFilter, M_BIT_A
 // #if PRINT_TRACE
     //printf("\n [PRINT_TRACE] Getting Last Index\n");
 //#endif   assert(bucket_no >= 1);
-    //PRINT_TRACE("Getting Last Index");
+    serverLog(LL_NOTICE,"Getting Last Index");
     M_BIT_ARRAY_LENGTH_TYPE lastIndex = 0;
     lastIndex = (__MAX_ELEMS_IN_A_BUCKET * bucket_no) - 1;
     //But last index should always be <= to the final address allocated to the filter, hence following is required.
@@ -175,8 +175,8 @@ __getLastIndexOfTheBucket(const struct __cuckoo_filter * const ckFilter, M_BIT_A
 
     assert(lastIndex >= 0 && lastIndex <= ckFilter->__m_bit_arr_len_in_bytes - 1);
 
-    //sprintf(temp_char_arr,"last index of bucket %d is %d",bucket_no,lastIndex);
-    //PRINT_DEBUG(temp_char_arr);
+    serverLog(LL_VERBOSE,"last index of bucket %d is %d",bucket_no,lastIndex);
+    
     return lastIndex;
 }
 
@@ -196,7 +196,7 @@ __get_pearson_8_bit_finger_print(unsigned const char *key)
 //#if PRINT_TRACE
     //printf("\n [PRINT_TRACE] Calculating Finger-Print\n");
 //#endif
- //PRINT_TRACE("Calculating Finger-Print");
+ serverLog(LL_NOTICE,"Calculating Finger-Print");
  unsigned int index=0;
 
  //TO DO:- fix the hack.
@@ -249,8 +249,8 @@ FINGER_PRINT_TYPE finger_print = __pearson_substitution_table[key[0] % 256];
     finger_print = __pearson_substitution_table[finger_print ^ key[index]];
  }
 
- //sprintf(temp_char_arr,"Finger Print for the given key %s is %c",key,finger_print);
- //PRINT_DEBUG(temp_char_arr);
+ serverLog(LL_VERBOSE,"Finger Print for the given key %s is %c",key,finger_print);
+ 
  return finger_print;
 }
 
@@ -270,7 +270,7 @@ __murmur3_32_bit_hash(const char* key)
 // #if PRINT_TRACE
     //printf("\n [PRINT_TRACE] Calculating Hash Code\n");
 //#endif
-    //PRINT_TRACE("Calculating Hash Code");
+    serverLog(LL_NOTICE,"Calculating Hash Code");
     static const u_int32_t c1 = 0xcc9e2d51;
     static const u_int32_t c2 = 0x1b873593;
     static const u_int32_t r1 = 15;
@@ -317,8 +317,8 @@ __murmur3_32_bit_hash(const char* key)
     hash ^= (hash >> 13);
     hash *= 0xc2b2ae35;
     hash ^= (hash >> 16);
-    //sprintf(temp_char_arr,"Hash for the given key %s is %u",key,hash);
-    //PRINT_DEBUG(temp_char_arr);
+    serverLog(LL_VERBOSE,"Hash for the given key %s is %u",key,hash);
+    
     return hash;
 }
 
@@ -336,7 +336,7 @@ __is_bucket_empty(const struct  __cuckoo_filter *my_filter, const M_BIT_ARRAY_LE
 // #if PRINT_TRACE
     //printf("\n [PRINT_TRACE] Checking for Empty Bucket\n");
 //#endif
-    //PRINT_TRACE("Checking for Empty Bucket");
+    serverLog(LL_NOTICE,"Checking for Empty Bucket");
     assert(my_filter->__m_bit_finger_print_array);
    
     //get starting index of bucket in the given filter...
@@ -357,16 +357,16 @@ __is_bucket_empty(const struct  __cuckoo_filter *my_filter, const M_BIT_ARRAY_LE
 //#if PRINT_DEBUG
             //printf("\n The filter named '%s' has an empty free in the bucket number '%d'\n",my_filter->__name,bucket_no);
 //#endif
-            //sprintf(temp_char_arr,"The filter named %s has an empty space at the bucket number %d",my_filter->__name,bucket_no);
-            //PRINT_DEBUG(temp_char_arr);
+            serverLog(LL_VERBOSE,"The filter has an empty space at the bucket number %d",bucket_no);
+            
             return 1;//Bucket entry is empty
         }
     }
 //#if //PRINT_DEBUG
     //printf("\n The filter named '%s' has no free space in the bucket number '%d'\n", my_filter->__name,bucket_no);
 //#endif
-    //sprintf(temp_char_arr,"The filter named '%s' has no free space in the bucket number '%d'",my_filter->__name,bucket_no);
-    //PRINT_DEBUG(temp_char_arr);
+    serverLog(LL_VERBOSE,"The filter has no free space in the bucket number '%d'",bucket_no);
+    
     *indexOfEmptyElement = 0;
     return 0;//Bucket entry is not empty
 }
@@ -384,7 +384,7 @@ __get_finger_print(const char* key)
 // #if PRINT_TRACE
     //printf("\n [PRINT_TRACE] Getting Finger-Print\n");
 //#endif //User pearsons hashing technique for generating the 8-bit fingerprint for given key.
-  //PRINT_TRACE("Getting Finger-Print");
+  serverLog(LL_NOTICE,"Getting Finger-Print");
   if(NULL == key)
     return 0;
   return __get_pearson_8_bit_finger_print(key);
@@ -403,7 +403,7 @@ __get_hash_1(const char* key)
 //#if PRINT_TRACE
     //printf("\n [PRINT_TRACE] Getting First Hash\n");
 //#endif
-    //PRINT_TRACE("Getting First Hash");
+    serverLog(LL_NOTICE,"Getting First Hash");
     if(NULL == key)
         return 0;
     return __murmur3_32_bit_hash(key);
@@ -423,7 +423,7 @@ __get_hash_2(FINGER_PRINT_TYPE finger_print, M_BIT_ARRAY_LENGTH_TYPE hash1)
 // #if PRINT_TRACE
     //printf("\n [PRINT_TRACE] Getting Second Hash\n");
 //#endif
-     //PRINT_TRACE("Getting Second Hash");
+     serverLog(LL_NOTICE,"Getting Second Hash");
     //return hash1 XOR __get_hash_1(finger_print)
     return (hash1 ^ __get_hash_1(&finger_print));
 }
@@ -442,7 +442,7 @@ __get_hash_2(FINGER_PRINT_TYPE finger_print, M_BIT_ARRAY_LENGTH_TYPE hash1)
 short 
 __insert_element(struct __cuckoo_filter* filter,const char* key)
 {
-    //PRINT_TRACE("Adding Element to Filter");
+    serverLog(LL_NOTICE,"Adding Element to Filter");
     if(NULL == key)
         return 0;
 
@@ -469,8 +469,8 @@ __insert_element(struct __cuckoo_filter* filter,const char* key)
 //#if PRINT_DEBUG
         //printf("\n Inserted element into index : %d : of first bucket",emptyLocationInBucket);
 //#endif
-        //sprintf(temp_char_arr,"Inserted element '%s' into index : %d of the first bucket",key,emptyLocationInBucket);
-        //PRINT_DEBUG(temp_char_arr);
+        serverLog(LL_VERBOSE,"Inserted element '%s' into index : %d of the first bucket",key,emptyLocationInBucket);
+        
         return 1;
     }
 
@@ -492,8 +492,8 @@ __insert_element(struct __cuckoo_filter* filter,const char* key)
 //#if PRINT_DEBUG
         //printf("\n Inserted element into index : %d : of second bucket",emptyLocationInBucket);
 //#endif
-        //sprintf(temp_char_arr,"Inserted element '%s' into index : %d of the second bucket",key,emptyLocationInBucket);
-        //PRINT_DEBUG(temp_char_arr);
+        serverLog(LL_VERBOSE,"Inserted element '%s' into index : %d of the second bucket",key,emptyLocationInBucket);
+        
         return 1;
     }
 
@@ -504,11 +504,11 @@ __insert_element(struct __cuckoo_filter* filter,const char* key)
 //#if PRINT_DEBUG
         //printf("\n No buckets were empty, starting to cuckoo the elements to find the new empty position\n");
 //#endif
-        //sprintf(temp_char_arr,"No buckets were empty, Finding empty locations by starting the process of Cuckoo-Kicks");
-        //PRINT_DEBUG(temp_char_arr);
+        serverLog(LL_VERBOSE,"No buckets were empty, Finding empty locations by starting the process of Cuckoo-Kicks");
+        
         
         M_BIT_ARRAY_LENGTH_TYPE * randomlyChosenBucket = NULL;
-        unsigned int cuckoo_kick_count = 0;
+        unsigned int cuckoo_kick_count = 0,  actualElemsInBucket = 0;
         M_BIT_ARRAY_LENGTH_TYPE randomlySelectedIndex = 0;
         FINGER_PRINT_TYPE tempFingerPrint = 0;
         unsigned short randomNumber = 0;
@@ -522,27 +522,38 @@ __insert_element(struct __cuckoo_filter* filter,const char* key)
         //firstIndex = __getFirstIndexOfTheBucket(filter,*(randomlyChosenBucket));
         //lastIndex = __getLastIndexOfTheBucket(filter,*(randomlyChosenBucket));
 
+        serverLog(LL_VERBOSE,"********************** Starting Cuckoo Kicks ******************************");
         for(cuckoo_kick_count = 1; cuckoo_kick_count <= __MAX_CUCKOO_KICKS; cuckoo_kick_count++)
         {
+            serverLog(LL_VERBOSE,"Continuing cuckoo-kick %d",cuckoo_kick_count);
             //select a random element from the bucket and swap it with current cuckoo filter.
-            randomNumber = rand()%__MAX_ELEMS_IN_A_BUCKET;
-            //sprintf(temp_char_arr,"Randomly Chosen entry in the selected bucket is : %d",randomNumber);
-            //PRINT_DEBUG(temp_char_arr);
-
+            actualElemsInBucket = __getLastIndexOfTheBucket(filter,*(randomlyChosenBucket)) - __getFirstIndexOfTheBucket(filter,*(randomlyChosenBucket)) ;
+            if( actualElemsInBucket == __MAX_ELEMS_IN_A_BUCKET )
+            {
+                randomNumber = rand()%__MAX_ELEMS_IN_A_BUCKET;//This will not work sometimes for the last bucket. So made some changes.
+            }
+            else
+            {
+                randomNumber = rand()%actualElemsInBucket;   
+            }
+            serverLog(LL_VERBOSE,"Randomly Chosen entry in the selected bucket number %d is : %d",*(randomlyChosenBucket),randomNumber);
+            
             randomlySelectedIndex = (randomNumber)+(__getFirstIndexOfTheBucket(filter,*(randomlyChosenBucket)));
-            //sprintf(temp_char_arr,"The equivalent index of randomly chosen entry %d is %d",randomNumber,randomlySelectedIndex);
-            //PRINT_DEBUG(temp_char_arr);
-
+            serverLog(LL_VERBOSE,"The equivalent index of randomly chosen entry %d is %d",randomNumber,randomlySelectedIndex);
+            
             //swap finger-print and selected_finger-print.
+            serverLog(LL_VERBOSE,"Swapping new finger-print %c and selected finger-print %c",finger_print,filter->__m_bit_finger_print_array[randomlySelectedIndex]);
             tempFingerPrint = filter->__m_bit_finger_print_array[randomlySelectedIndex];
             filter->__m_bit_finger_print_array[randomlySelectedIndex] = finger_print;
             finger_print = tempFingerPrint;
 
             //Relocate the swapped element to its another equivalent bucket., So get the equivalent bucket.
-           //if(randomlyChosenBucket 
+            serverLog(LL_VERBOSE,"Relocating the existing fingerprint %c to new location in the filter",finger_print);
             hash2 = __get_hash_2(finger_print,*(randomlyChosenBucket));
             //This hash2 must be < finger_print array length.
             hash2 = hash2 % filter->__m_bit_arr_len_in_bytes;
+
+            serverLog(LL_VERBOSE,"Getting the alternative bucket number of fingerprint %c, its current bucket number is %d",finger_print,*(randomlyChosenBucket));
             bucket_2 = __getBucketNumber(filter,hash2);
             randomlyChosenBucket = &bucket_2;
 
@@ -550,14 +561,15 @@ __insert_element(struct __cuckoo_filter* filter,const char* key)
             {
                 //Fill this entry with the fingerprint.
                 filter->__m_bit_finger_print_array[emptyLocationInBucket] = finger_print;
-                //sprintf(temp_char_arr,"Inserted element '%s' into index : %d of the bucket during CUCKOO KICK NO - %d",key,emptyLocationInBucket,cuckoo_kick_count);
-                //PRINT_DEBUG(temp_char_arr);
+                serverLog(LL_VERBOSE,"Inserted element '%s' into index : %d of the bucket during CUCKOO KICK NO - %d",key,emptyLocationInBucket,cuckoo_kick_count);
+                
                 return 1;
             } 
 
+            serverLog(LL_VERBOSE,"The alternative bucket %d for fingerprint %c is not empty, continuing cuckoo-kick process again.",*(randomlyChosenBucket),finger_print);
         }//end of for..
-        //sprintf(temp_char_arr,"Maximum Cuckoo Kicks EXCEEDED. Filter is Considered as FULL.");
-        //PRINT_DEBUG(temp_char_arr);
+        serverLog(LL_VERBOSE,"Maximum Cuckoo Kicks EXCEEDED. Filter is Considered as FULL.");
+        
         return 0;
     }//end of else...
 
@@ -577,7 +589,7 @@ __insert_element(struct __cuckoo_filter* filter,const char* key)
 short 
 __check_or_delete_element(struct __cuckoo_filter* filter , const char* key, short __should_delete_element)
 {
-    //PRINT_TRACE("Checking Element Existence.");
+    serverLog(LL_NOTICE,"Checking Element Existence.");
 
      if( NULL == key)
         return 0;
@@ -599,12 +611,12 @@ __check_or_delete_element(struct __cuckoo_filter* filter , const char* key, shor
     //Check if element is present in first bucket.
     if(__is_element_present_in_bucket(finger_print,bucket_1,filter,&locWhereElemIsPresent))
     {
-        //sprintf(temp_char_arr,"Element %s found at bucket number: %d at index %d",key,bucket_1,locWhereElemIsPresent);
-        //PRINT_DEBUG(temp_char_arr);
+        serverLog(LL_VERBOSE,"Element %s found at bucket number: %d at index %d",key,bucket_1,locWhereElemIsPresent);
+        
         if(__should_delete_element)
         {
-            //sprintf(temp_char_arr,"Deleting the element %s from index %d.",key,locWhereElemIsPresent);
-            //PRINT_DEBUG(temp_char_arr);
+            serverLog(LL_VERBOSE,"Deleting the element %s from index %d.",key,locWhereElemIsPresent);
+            
             filter->__m_bit_finger_print_array[(locWhereElemIsPresent)] = __EMPTY_ELEMENT;
         }
         return 1;
@@ -623,24 +635,24 @@ __check_or_delete_element(struct __cuckoo_filter* filter , const char* key, shor
     //Check element presence in bucket 2.
     if(__is_element_present_in_bucket(finger_print,bucket_2,filter,&locWhereElemIsPresent))
     {
-        //sprintf(temp_char_arr,"Element '%s' found at bucket number: %d at index %d",key,bucket_2,locWhereElemIsPresent);
-        //PRINT_DEBUG(temp_char_arr);
+        serverLog(LL_VERBOSE,"Element '%s' found at bucket number: %d at index %d",key,bucket_2,locWhereElemIsPresent);
+        
         if(__should_delete_element)
         {
-            //sprintf(temp_char_arr,"Deleting the element %s from index %d.\",key,locWhereElemIsPresent");
-            //PRINT_DEBUG(temp_char_arr);
+            serverLog(LL_VERBOSE,"Deleting the element %s from index %d.\",key,locWhereElemIsPresent");
+            
             filter->__m_bit_finger_print_array[(locWhereElemIsPresent)] = __EMPTY_ELEMENT;        
         }
         return 1;
     }
 
-    //sprintf(temp_char_arr,"Element '%s' NOT FOUND in the filter",key);
-    //PRINT_DEBUG(temp_char_arr);
+    serverLog(LL_VERBOSE,"Element '%s' NOT FOUND in the filter",key);
+    
 
     if(__should_delete_element)
     {
-        //sprintf(temp_char_arr,"Cannot Delete the key %s",key);
-        //PRINT_DEBUG(temp_char_arr);
+        serverLog(LL_VERBOSE,"Cannot Delete the key %s",key);
+        
         //DO Nothing.. or else reply error from Redis.
     }
     return 0; 
@@ -658,7 +670,7 @@ __check_or_delete_element(struct __cuckoo_filter* filter , const char* key, shor
 short
 __remove_element(struct __cuckoo_filter* filter , const char* key)
 {
-    //PRINT_TRACE("\"Removing the element\"");
+    serverLog(LL_NOTICE,"\"Removing the element\"");
     if(NULL == key)
         return 0;    
     return __check_or_delete_element(filter,key,1);
@@ -675,11 +687,11 @@ __remove_element(struct __cuckoo_filter* filter , const char* key)
 short 
 __remove_specified_filter(struct __cuckoo_filter* temp)
 {
-    //PRINT_TRACE("Removing Specified Filter");
+    serverLog(LL_NOTICE,"Removing Specified Filter");
 
     if(NULL == temp)
     {
-        //PRINT_DEBUG("Invalid filter specified");
+        serverLog(LL_VERBOSE,"Invalid filter specified");
         return 0;
     }
 
@@ -712,7 +724,7 @@ __remove_specified_filter(struct __cuckoo_filter* temp)
 short 
 add_element(struct __cuckoo_filter* filter,const char* key)
 {
-    //PRINT_TRACE("Adding element to cuckoo filter");
+    serverLog(LL_NOTICE,"Adding element to cuckoo filter");
     if(NULL == key)
         return 0;
     return __insert_element(filter,key);    
@@ -732,7 +744,7 @@ add_element(struct __cuckoo_filter* filter,const char* key)
 short 
 is_member(struct __cuckoo_filter* filter, const char* key)
 {
-    //PRINT_TRACE("Checking if element is member of filter.");
+    serverLog(LL_NOTICE,"Checking if element is member of filter.");
     if( NULL == key)
         return 0;
 
@@ -751,7 +763,7 @@ is_member(struct __cuckoo_filter* filter, const char* key)
 short 
 delete_element(struct __cuckoo_filter* filter, const char* key)
 {
-    //PRINT_TRACE("Deleting element from filter");
+    serverLog(LL_NOTICE,"Deleting element from filter");
     if(NULL == key)
         return 0;
 
@@ -769,7 +781,6 @@ static inline size_t buflen(uint64_t m)
 void 
 cuckoocreateCommand(client *c)
 {
-    printf("Creating cuckoo filter");
     robj *o;
     long m;
     size_t byte;
@@ -810,8 +821,6 @@ cuckoocreateCommand(client *c)
     server.dirty++;
     addReply(c,shared.ok);
 }
-
-
 
 
 void cuckooinsertelementCommand(client *c) {
