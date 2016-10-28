@@ -1,0 +1,25 @@
+Two hash functions
+	Claim that we will get only 25% efficiency (space)
+
+Try to see how replication works
+	How to manually shut down a node
+	What happens?
+	Does it get back the data from the replica
+
+Analysis
+	Stats
+
+Script that will insert hell lot of elements
+	Get stats on that
+		Insertion time
+		Search time
+		Deletion time
+
+Epsilon(false positive rate)
+	Take a look
+
+Figure out the interfacing / libraries needed to interact with the redis cluster
+
+What happens if we increase the number of nodes?
+	Do we rearrange all elements?
+	ONLY IF WE USE FINGERPRINT to select the node in the cluster, can we think about this
