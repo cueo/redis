@@ -27,3 +27,5 @@ deps/lua/src/liblua.a
 .make-*
 .prerequisites
 *.dSYM
+.DS_Store
+*.bak
