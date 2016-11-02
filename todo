@@ -1,3 +1,4 @@
+2016-10-29
 Two hash functions
 	Claim that we will get only 25% efficiency (space)
 
@@ -23,3 +24,20 @@ Figure out the interfacing / libraries needed to interact with the redis cluster
 What happens if we increase the number of nodes?
 	Do we rearrange all elements?
 	ONLY IF WE USE FINGERPRINT to select the node in the cluster, can we think about this
+
+
+2016-11-02
+- Copy the cuckoo filter and make changes to it
+- Register appropriate handlers in server.c and server.h
+
+- Some command hash slot or something, which forces some particular key to a particular node
+- Call the same cuckoo filter port number of times
+- add and search- make them work first
+- for now try to force them to first slot. And the change to other slot and test
+- if it works then cool
+- start working on delete
+
+- Plug in diff hash function
+
+- Script
+- That even gives statistics in terms of time
