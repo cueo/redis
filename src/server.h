@@ -1676,6 +1676,13 @@ void cuckooinsertelementCommand(client* c);
 void cuckooremoveelementCommand(client* c);
 void cuckoocheckelementCommand(client* c);
 
+// cuckoo_filter_cluster.c related commands
+void cuckoocreateclusterCommand(client* c);
+void cuckooinsertclusterCommand(client* c);
+void cuckooremoveclusterCommand(client* c);
+void cuckoocheckclusterCommand(client* c);
+
+
 #if defined(__GNUC__)
 void *calloc(size_t count, size_t size) __attribute__ ((deprecated));
 void free(void *ptr) __attribute__ ((deprecated));
