@@ -980,6 +980,8 @@ void cuckoocheckclusterCommand(client *c) {
 
     //addReply(c,shared.ok);
 
+}
+
     void cuckooclusterCommand(client * c)
     {
         if ((c->argc % 2) == 0) 
@@ -1037,4 +1039,4 @@ void cuckoocheckclusterCommand(client *c) {
         }
 
     }
-}
+
