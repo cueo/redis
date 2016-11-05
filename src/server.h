@@ -1681,6 +1681,7 @@ void cuckoocreateclusterCommand(client* c);
 void cuckooinsertclusterCommand(client* c);
 void cuckooremoveclusterCommand(client* c);
 void cuckoocheckclusterCommand(client* c);
+void cuckooclusterCommand(client* c);
 
 
 #if defined(__GNUC__)

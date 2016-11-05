@@ -823,6 +823,8 @@ cuckoocreateclusterCommand(client *c)
 }
 
 
+
+
 void cuckooinsertclusterCommand(client *c) {
     robj *o;
     char *err = "invalid filter format", *buf;
@@ -977,4 +979,62 @@ void cuckoocheckclusterCommand(client *c) {
     server.dirty++;
 
     //addReply(c,shared.ok);
+
+    void cuckooclusterCommand(client * c)
+    {
+        if ((c->argc % 2) == 0) 
+        {
+            addReplyError(c,"wrong number of arguments for cuckoocluster");
+            return;
+        }
+
+        int j;
+        for (j = 1; j < c->argc; j += 2)
+        {
+            robj *o;
+            long m;
+            size_t byte;
+            struct __cuckoo_filter* new_filter;
+
+            if (C_OK != getLongFromObjectOrReply(c, c->argv[j+1],&m,
+                            "cuckoo filter bits is not an integer or out of range"))
+                return;
+            if (m <= 0) {
+                addReplyError(c,"cuckoo filter bits is not an positive integer");
+                return;
+            }
+
+
+            byte = buflen(m);
+            if (byte > __MAX_SIZE_OF_CUCKOO_FILTER) {
+                addReplyError(c,"cuckoo filter size exceeds maximum allowed size (512MB)");
+                return;
+            }
+
+            o = lookupKeyWrite(c->db,c->argv[j]);
+            if (o == NULL) 
+            {
+                o = createObject(OBJ_STRING,sdsnewlen(NULL,byte));
+                dbAdd(c->db,c->argv[j],o);
+            } 
+            else 
+            {
+                addReplyError(c,"filter object already exists");
+                return;
+            }
+
+            new_filter = (struct __cuckoo_filter*) o->ptr;
+            new_filter->__m_bit_arr_len_in_bytes = m;  //because 1 byte per item.
+            new_filter->__total_no_of_buckets = ceil(m / (float)__MAX_ELEMS_IN_A_BUCKET);
+            //new_filter->__m_bit_finger_print_array = NULL;//Don't reset to NULL, memory already allocated.
+            new_filter->__m_bit_finger_print_array = (FINGER_PRINT_TYPE *)(new_filter + 1);
+
+            signalModifiedKey(c->db,c->argv[j]);
+            notifyKeyspaceEvent(NOTIFY_STRING,"cuckoofilter",c->argv[j],c->db->id);
+            //server.dirty++;
+            server.dirty += (c->argc-1)/2;
+            addReply(c,shared.ok);
+        }
+
+    }
 }
