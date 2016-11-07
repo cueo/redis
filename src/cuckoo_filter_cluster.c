@@ -36,6 +36,14 @@ struct __cuckoo_filter
 
 };
 
+/*const char *filter_names[4];
+filter_names[0] = "filter1";
+filter_names[1] = "filter2";
+filter_names[2] = "filter3";
+filter_names[3] = "filter4";*/
+
+char filter_names[4][8] = {"filter1", "filter2", "filter3", "filter4"};
+
 
 /*List of functions */
 
@@ -389,6 +397,17 @@ __get_finger_print_cluster(const char* key)
     return 0;
   return __get_pearson_8_bit_finger_print_cluster(key);
 }//end of get_finger_print function
+
+
+
+M_BIT_ARRAY_LENGTH_TYPE 
+__get_filter_hash_cluster(const char* key)
+{
+    serverLog(LL_NOTICE,"Getting filter hash");
+    if(NULL == key)
+        return 0;
+    return __murmur3_32_bit_hash_cluster(key);
+}
 
 
 /*
@@ -781,6 +800,7 @@ static inline size_t buflen(uint64_t m)
 void
 cuckoocreateclusterCommand(client *c)
 {
+    
     robj *o;
     long m;
     size_t byte;
@@ -806,7 +826,7 @@ cuckoocreateclusterCommand(client *c)
         o = createObject(OBJ_STRING,sdsnewlen(NULL,byte));
         dbAdd(c->db,c->argv[1],o);
     } else {
-        addReplyError(c,"filter object is already exist");
+        addReplyError(c,"filter object already exists!");
         return;
     }
 
@@ -820,6 +840,7 @@ cuckoocreateclusterCommand(client *c)
     notifyKeyspaceEvent(NOTIFY_STRING,"cuckoocreatecluster",c->argv[1],c->db->id);
     server.dirty++;
     addReply(c,shared.ok);
+
 }
 
 
@@ -827,92 +848,98 @@ cuckoocreateclusterCommand(client *c)
 
 void cuckooinsertclusterCommand(client *c) {
     robj *o;
+    robj *name;                   //CHECK
     char *err = "invalid filter format", *buf;
     size_t len, byte;
     int i;
     struct __cuckoo_filter *filter;
 
-    if ((o = lookupKeyWriteOrReply(c,c->argv[1],shared.nokeyerr)) == NULL
+    for(i=1; i < c->argc; i++)
+    {
+        M_BIT_ARRAY_LENGTH_TYPE filter_hash = __get_filter_hash_cluster((c->argv[i])->ptr);  
+        filter_hash = filter_hash % 4;
+        name = createObject(OBJ_STRING, (void *)filter_names[filter_hash]); 
+
+        if ((o = lookupKeyWriteOrReply(c, name, shared.nokeyerr)) == NULL
          || (checkType(c,o,OBJ_STRING))) return;
-    if (o->encoding != OBJ_ENCODING_RAW) {
-        addReplyError(c,err);
-        return;
-    }
+        
+        if (o->encoding != OBJ_ENCODING_RAW) {
+            addReplyError(c,err);
+            return;
+        }
 
-    len = sdslen(o->ptr);
-    if (len < sizeof(struct __cuckoo_filter)) {
-        addReplyError(c,err);
-        return;
-    }
+        len = sdslen(o->ptr);
+        if (len < sizeof(struct __cuckoo_filter)) {
+            addReplyError(c,err);
+            return;
+        }
 
-    filter = (struct __cuckoo_filter*)o->ptr;
-    //byte = buflen(filter->m);
-    byte = buflen(filter->__m_bit_arr_len_in_bytes);
-    buf = (char*)(filter + 1);
-    if (len != byte) {
-        addReplyError(c,err);
-        return;
-    }
+        filter = (struct __cuckoo_filter*)o->ptr;
+        //byte = buflen(filter->m);
+        byte = buflen(filter->__m_bit_arr_len_in_bytes);
+        buf = (char*)(filter + 1);
+        if (len != byte) {
+            addReplyError(c,err);
+            return;
+        }
 
+        addReplyMultiBulkLen(c, c->argc-2);
 
-    /*
-    //Initially we support only one element insertion at a time...
-    for(i = 2; i<3;i++) {
-    */
-    addReplyMultiBulkLen(c,c->argc-2);
-    for (i = 2; i < c->argc; i++) {
-        //all the arguments are considered as robj's internally.
-        //So instead of sending c->argv[i], send (c->argv[i])->ptr
-        //if(__insert_element_cluster(filter,c->argv[i]))
-        if(__insert_element_cluster(filter,(c->argv[i])->ptr))
-            addReply(c,shared.cone);
+        if(__insert_element_cluster(filter, (c->argv[i])->ptr))
+            addReply(c, shared.cone);
         else
-            addReply(c,shared.czero);
+            addReply(c, shared.czero);
+
+
+        signalModifiedKey(c->db, name);
+        notifyKeyspaceEvent(NOTIFY_STRING, "cuckooinsertcluster", name, c->db->id);
+        server.dirty++;
+
+        //addReply(c,shared.ok);
     }
-
-    signalModifiedKey(c->db,c->argv[1]);
-    notifyKeyspaceEvent(NOTIFY_STRING,"cuckooinsertcluster",c->argv[1],c->db->id);
-    server.dirty++;
-
-    //addReply(c,shared.ok);
+    
 }
 
 
 void cuckooremoveclusterCommand(client *c) {
     robj *o;
+    robj *name;
     char *err = "invalid filter format", *buf;
     size_t len, byte;
     int i;
     struct __cuckoo_filter *filter;
 
-    if ((o = lookupKeyWriteOrReply(c,c->argv[1],shared.nokeyerr)) == NULL
-         || (checkType(c,o,OBJ_STRING))) return;
-    if (o->encoding != OBJ_ENCODING_RAW) {
-        addReplyError(c,err);
-        return;
-    }
+    for(i=1; i < c->argc; i++)
+    {
+        M_BIT_ARRAY_LENGTH_TYPE filter_hash = __get_filter_hash_cluster((c->argv[i])->ptr);  
+        filter_hash = filter_hash % 4;
+        name = createObject(OBJ_STRING, (void *)filter_names[filter_hash]); 
 
-    len = sdslen(o->ptr);
-    if (len < sizeof(struct __cuckoo_filter)) {
-        addReplyError(c,err);
-        return;
-    }
-
-    filter = (struct __cuckoo_filter*)o->ptr;
-    //byte = buflen(filter->m);
-    byte = buflen(filter->__m_bit_arr_len_in_bytes);
-    buf = (char*)(filter + 1);
-    if (len != byte) {
-        addReplyError(c,err);
-        return;
-    }
-
-    /*
-    //Initially we support only one element deletion at a time.
-    for (i = 2; i < 3; i++) {
-    */
-    addReplyMultiBulkLen(c,c->argc-2);
-    for (i = 2; i < c->argc; i++) {
+        if ((o = lookupKeyWriteOrReply(c, name, shared.nokeyerr)) == NULL
+             || (checkType(c,o,OBJ_STRING))) return;
+        if (o->encoding != OBJ_ENCODING_RAW) {
+            addReplyError(c,err);
+            return;
+        }
+    
+        len = sdslen(o->ptr);
+        if (len < sizeof(struct __cuckoo_filter)) {
+            addReplyError(c,err);
+            return;
+        }
+    
+        filter = (struct __cuckoo_filter*)o->ptr;
+        //byte = buflen(filter->m);
+        byte = buflen(filter->__m_bit_arr_len_in_bytes);
+        buf = (char*)(filter + 1);
+        if (len != byte) {
+            addReplyError(c,err);
+            return;
+        }
+    
+        
+        addReplyMultiBulkLen(c,c->argc-2);
+        
         //all the arguments are considered as robj's internally.
         //So instead of sending c->argv[i], send (c->argv[i])->ptr
         //if(delete_element_cluster(filter,c->argv[i]))
@@ -920,123 +947,130 @@ void cuckooremoveclusterCommand(client *c) {
             addReply(c,shared.cone);
         else
             addReply(c,shared.czero);
+        
+    
+        signalModifiedKey(c->db, name);
+        notifyKeyspaceEvent(NOTIFY_STRING,"cuckooremovecluster", name, c->db->id);
+        server.dirty++;
+    
+        //addReply(c,shared.ok);
     }
-
-    signalModifiedKey(c->db,c->argv[1]);
-    notifyKeyspaceEvent(NOTIFY_STRING,"cuckooremovecluster",c->argv[1],c->db->id);
-    server.dirty++;
-
-    //addReply(c,shared.ok);
 }
 
 
 void cuckoocheckclusterCommand(client *c) {
     robj *o;
+    robj *name;
     char *err = "invalid filter format", *buf;
     size_t len, byte;
     int i;
     struct __cuckoo_filter *filter;
 
-    if ((o = lookupKeyWriteOrReply(c,c->argv[1],shared.nokeyerr)) == NULL
-         || (checkType(c,o,OBJ_STRING))) return;
-    if (o->encoding != OBJ_ENCODING_RAW) {
-        addReplyError(c,err);
-        return;
+    for(i=1; i < c->argc; i++)
+    {
+        M_BIT_ARRAY_LENGTH_TYPE filter_hash = __get_filter_hash_cluster((c->argv[i])->ptr);  
+        filter_hash = filter_hash % 4;
+        name = createObject(OBJ_STRING, (void *)filter_names[filter_hash]); 
+
+        
+        if ((o = lookupKeyWriteOrReply(c,name,shared.nokeyerr)) == NULL
+             || (checkType(c,o,OBJ_STRING))) return;
+        if (o->encoding != OBJ_ENCODING_RAW) {
+            addReplyError(c,err);
+            return;
+        }
+    
+        len = sdslen(o->ptr);
+        if (len < sizeof(struct __cuckoo_filter)) {
+            addReplyError(c,err);
+            return;
+        }
+    
+        filter = (struct __cuckoo_filter*)o->ptr;
+        //byte = buflen(filter->m);
+        byte = buflen(filter->__m_bit_arr_len_in_bytes);
+        buf = (char*)(filter + 1);
+        if (len != byte) {
+            addReplyError(c,err);
+            return;
+        }
+    
+        
+        addReplyMultiBulkLen(c,c->argc-2);
+        for (i = 2; i < c->argc; i++) {
+            //all the arguments are considered as robj's internally.
+            //So instead of sending c->argv[i], send (c->argv[i])->ptr
+            //if(is_member_cluster(filter,c->argv[i]))
+            if(is_member_cluster(filter,(c->argv[i])->ptr))
+                addReply(c,shared.cone);
+            else
+                addReply(c,shared.czero);
+        }
+    
+        signalModifiedKey(c->db,name);
+        notifyKeyspaceEvent(NOTIFY_STRING,"cuckoocheckcluster",name,c->db->id);
+        server.dirty++;
+    
+        //addReply(c,shared.ok);
     }
-
-    len = sdslen(o->ptr);
-    if (len < sizeof(struct __cuckoo_filter)) {
-        addReplyError(c,err);
-        return;
-    }
-
-    filter = (struct __cuckoo_filter*)o->ptr;
-    //byte = buflen(filter->m);
-    byte = buflen(filter->__m_bit_arr_len_in_bytes);
-    buf = (char*)(filter + 1);
-    if (len != byte) {
-        addReplyError(c,err);
-        return;
-    }
-
-    /*
-    // Initially only one element can be checked for existence at a time.
-    for (i = 2; i < 3; i++) {
-    */
-    addReplyMultiBulkLen(c,c->argc-2);
-    for (i = 2; i < c->argc; i++) {
-        //all the arguments are considered as robj's internally.
-        //So instead of sending c->argv[i], send (c->argv[i])->ptr
-        //if(is_member_cluster(filter,c->argv[i]))
-        if(is_member_cluster(filter,(c->argv[i])->ptr))
-            addReply(c,shared.cone);
-        else
-            addReply(c,shared.czero);
-    }
-
-    signalModifiedKey(c->db,c->argv[1]);
-    notifyKeyspaceEvent(NOTIFY_STRING,"cuckoocheckcluster",c->argv[1],c->db->id);
-    server.dirty++;
-
-    //addReply(c,shared.ok);
 
 }
 
-    void cuckooclusterCommand(client * c)
+void cuckooclusterCommand(client * c)
+{
+    if ((c->argc % 2) == 0) 
     {
-        if ((c->argc % 2) == 0) 
-        {
-            addReplyError(c,"wrong number of arguments for cuckoocluster");
+        addReplyError(c,"wrong number of arguments for cuckoocluster");
+        return;
+    }
+
+    int j;
+    for (j = 1; j < c->argc; j += 2)
+    {
+        robj *o;
+        long m;
+        size_t byte;
+        struct __cuckoo_filter* new_filter;
+
+        if (C_OK != getLongFromObjectOrReply(c, c->argv[j+1],&m,
+                        "cuckoo filter bits is not an integer or out of range"))
+            return;
+        if (m <= 0) {
+            addReplyError(c,"cuckoo filter bits is not an positive integer");
             return;
         }
 
-        int j;
-        for (j = 1; j < c->argc; j += 2)
-        {
-            robj *o;
-            long m;
-            size_t byte;
-            struct __cuckoo_filter* new_filter;
 
-            if (C_OK != getLongFromObjectOrReply(c, c->argv[j+1],&m,
-                            "cuckoo filter bits is not an integer or out of range"))
-                return;
-            if (m <= 0) {
-                addReplyError(c,"cuckoo filter bits is not an positive integer");
-                return;
-            }
-
-
-            byte = buflen(m);
-            if (byte > __MAX_SIZE_OF_CUCKOO_FILTER) {
-                addReplyError(c,"cuckoo filter size exceeds maximum allowed size (512MB)");
-                return;
-            }
-
-            o = lookupKeyWrite(c->db,c->argv[j]);
-            if (o == NULL) 
-            {
-                o = createObject(OBJ_STRING,sdsnewlen(NULL,byte));
-                dbAdd(c->db,c->argv[j],o);
-            } 
-            else 
-            {
-                addReplyError(c,"filter object already exists");
-                return;
-            }
-
-            new_filter = (struct __cuckoo_filter*) o->ptr;
-            new_filter->__m_bit_arr_len_in_bytes = m;  //because 1 byte per item.
-            new_filter->__total_no_of_buckets = ceil(m / (float)__MAX_ELEMS_IN_A_BUCKET);
-            //new_filter->__m_bit_finger_print_array = NULL;//Don't reset to NULL, memory already allocated.
-            new_filter->__m_bit_finger_print_array = (FINGER_PRINT_TYPE *)(new_filter + 1);
-
-            signalModifiedKey(c->db,c->argv[j]);
-            notifyKeyspaceEvent(NOTIFY_STRING,"cuckoofilter",c->argv[j],c->db->id);
-            //server.dirty++;
-            server.dirty += (c->argc-1)/2;
-            addReply(c,shared.ok);
+        byte = buflen(m);
+        if (byte > __MAX_SIZE_OF_CUCKOO_FILTER) {
+            addReplyError(c,"cuckoo filter size exceeds maximum allowed size (512MB)");
+            return;
         }
 
+        o = lookupKeyWrite(c->db,c->argv[j]);
+        if (o == NULL) 
+        {
+            o = createObject(OBJ_STRING,sdsnewlen(NULL,byte));
+            dbAdd(c->db,c->argv[j],o);
+        } 
+        else 
+        {
+            addReplyError(c,"filter object already exists");
+            return;
+        }
+
+        new_filter = (struct __cuckoo_filter*) o->ptr;
+        new_filter->__m_bit_arr_len_in_bytes = m;  //because 1 byte per item.
+        new_filter->__total_no_of_buckets = ceil(m / (float)__MAX_ELEMS_IN_A_BUCKET);
+        //new_filter->__m_bit_finger_print_array = NULL;//Don't reset to NULL, memory already allocated.
+        new_filter->__m_bit_finger_print_array = (FINGER_PRINT_TYPE *)(new_filter + 1);
+
+        signalModifiedKey(c->db,c->argv[j]);
+        notifyKeyspaceEvent(NOTIFY_STRING,"cuckoofilter",c->argv[j],c->db->id);
+        //server.dirty++;
+        server.dirty += (c->argc-1)/2;
+        addReply(c,shared.ok);
     }
+
+}
 
