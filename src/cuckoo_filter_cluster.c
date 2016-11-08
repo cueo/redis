@@ -854,7 +854,7 @@ void cuckooinsertclusterCommand(client *c) {
     int i;
     struct __cuckoo_filter *filter;
 
-    for(i=1; i < c->argc; i++)
+    for(i=2; i < c->argc; i++)
     {
         M_BIT_ARRAY_LENGTH_TYPE filter_hash = __get_filter_hash_cluster((c->argv[i])->ptr);  
         filter_hash = filter_hash % 4;
@@ -909,7 +909,7 @@ void cuckooremoveclusterCommand(client *c) {
     int i;
     struct __cuckoo_filter *filter;
 
-    for(i=1; i < c->argc; i++)
+    for(i=2; i < c->argc; i++)
     {
         M_BIT_ARRAY_LENGTH_TYPE filter_hash = __get_filter_hash_cluster((c->argv[i])->ptr);  
         filter_hash = filter_hash % 4;
@@ -966,7 +966,7 @@ void cuckoocheckclusterCommand(client *c) {
     int i;
     struct __cuckoo_filter *filter;
 
-    for(i=1; i < c->argc; i++)
+    for(i=2; i < c->argc; i++)
     {
         M_BIT_ARRAY_LENGTH_TYPE filter_hash = __get_filter_hash_cluster((c->argv[i])->ptr);  
         filter_hash = filter_hash % 4;
