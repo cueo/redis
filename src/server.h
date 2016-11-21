@@ -1683,6 +1683,12 @@ void cuckooremoveclusterCommand(client* c);
 void cuckoocheckclusterCommand(client* c);
 void cuckooclusterCommand(client* c);
 
+//cuckoo_filter_cluster2.c
+void cuckoocreatecluster2Command(client* c);
+void cuckooinsertcluster2Command(client* c);
+//void cuckooremovecluster2Command(client* c);
+//void cuckoocheckcluster2Command(client* c);
+
 
 #if defined(__GNUC__)
 void *calloc(size_t count, size_t size) __attribute__ ((deprecated));

@@ -315,7 +315,15 @@ struct redisCommand redisCommandTable[] = {
 
     {"cuckooremovecluster",cuckooremoveclusterCommand,-2,"wm",0,NULL,1,1,1,0,0},//commandName filterName(arg-1) val1 val2 ...
     {"cuckoocheckcluster",cuckoocheckclusterCommand,-2,"wm",0,NULL,1,1,1,0,0},//commandName filterName(arg-1) val1 val2 ...
-    {"cuckoocluster",cuckooclusterCommand,-3,"wm",0,NULL,1,-1,2,0,0} //commandName filter1 filter2 filter3
+    {"cuckoocluster",cuckooclusterCommand,-3,"wm",0,NULL,1,-1,2,0,0}, //commandName filter1 filter2 filter3
+
+
+    // testing cuckoo_filter_cluster2.c
+    {"cuckoocreatecluster2",cuckoocreatecluster2Command,1,"wm",0,NULL,0,0,0,0,0}, //commandName filterName(arg-1) sizeofFilter
+    {"cuckooinsertcluster2",cuckooinsertcluster2Command,-2,"wm",0,NULL,1,-1,1,0,0},
+
+    //{"cuckooremovecluster2",cuckooremovecluster2Command,-2,"wm",0,NULL,1,-1,1,0,0},//commandName filterName(arg-1) val1 val2 ...
+    //{"cuckoocheckcluster2",cuckoocheckcluster2Command,-2,"wm",0,NULL,1,-1,1,0,0}//commandName filterName(arg-1) val1 val2 ...
 
 };
 
